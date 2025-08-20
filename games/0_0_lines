@@ -1,0 +1,11 @@
+{
+  "mode": "balls",
+  "bet": 1,
+  "colors": ["RED", "GREEN", "BLUE", "YELLOW"],
+  "weights": [1, 1, 1, 1],
+  "rules": {
+    "three_same": 10,
+    "two_same": 0,
+    "all_different": 5
+  }
+}
