@@ -18,6 +18,11 @@ class GridBallsRules:
     bottom_row_all_same: int = 0
 
 @dataclass
+class BetMode:
+    name: str
+    cost: float  # koszt rundy (np. 1.0)
+
+@dataclass
 class GameConfig:
     id: str
     mode: str = "balls"
@@ -27,26 +32,35 @@ class GameConfig:
     reels: Optional[List[List[str]]] = None
     paytable: Optional[Paytable] = None
 
-    # balls (proste 3 kulki)
+    # balls
     colors: Optional[List[str]] = None
     weights: Optional[List[float]] = None
     balls_rules: Optional[BallsRules] = None
 
-    # grid_balls (siatka 3x5)
+    # grid_balls
     rows: Optional[int] = None
     cols: Optional[int] = None
     grid_balls_rules: Optional[GridBallsRules] = None
+
+    # betmodes (np. base, bonus)
+    betmodes: List[BetMode] = None
 
 def load_config(game_id: str) -> GameConfig:
     cfg_path = Path("games") / game_id / "config.json"
     data = json.loads(cfg_path.read_text(encoding="utf-8"))
     mode = data.get("mode", "balls")
+    bet = data.get("bet", 1)
+
+    def with_betmodes(cfg: GameConfig) -> GameConfig:
+        # Na start jeden tryb "base" o koszcie = bet
+        cfg.betmodes = [BetMode(name="base", cost=float(bet))]
+        return cfg
 
     if mode == "grid_balls":
-        return GameConfig(
+        return with_betmodes(GameConfig(
             id=game_id,
             mode="grid_balls",
-            bet=data.get("bet", 1),
+            bet=bet,
             colors=data["colors"],
             weights=data.get("weights"),
             rows=int(data["rows"]),
@@ -54,12 +68,12 @@ def load_config(game_id: str) -> GameConfig:
             grid_balls_rules=GridBallsRules(
                 bottom_row_all_same=data.get("rules", {}).get("bottom_row_all_same", 0)
             ),
-        )
+        ))
     elif mode == "balls":
-        return GameConfig(
+        return with_betmodes(GameConfig(
             id=game_id,
             mode="balls",
-            bet=data.get("bet", 1),
+            bet=bet,
             colors=data["colors"],
             weights=data.get("weights"),
             balls_rules=BallsRules(
@@ -67,13 +81,13 @@ def load_config(game_id: str) -> GameConfig:
                 two_same=data.get("rules", {}).get("two_same", 0),
                 all_different=data.get("rules", {}).get("all_different", 0),
             ),
-        )
+        ))
     else:
         # lines
-        return GameConfig(
+        return with_betmodes(GameConfig(
             id=game_id,
             mode="lines",
-            bet=data.get("bet", 1),
+            bet=bet,
             reels=data["reels"],
             paytable=Paytable(three_kind=data["paytable"]["3oak"]),
-        )
+        ))
