@@ -1,11 +1,11 @@
 {
-  "mode": "balls",
+  "mode": "grid_balls",
   "bet": 1,
+  "rows": 3,
+  "cols": 5,
   "colors": ["RED", "GREEN", "BLUE", "YELLOW"],
   "weights": [1, 1, 1, 1],
   "rules": {
-    "three_same": 10,
-    "two_same": 0,
-    "all_different": 5
+    "bottom_row_all_same": 20
   }
 }

@@ -1,0 +1,20 @@
+{"spin": 0, "board": ["RED", "RED", "GREEN"], "win": null, "payout": 0, "balance": -1, "state": {}}
+{"spin": 1, "board": ["RED", "YELLOW", "RED"], "win": null, "payout": 0, "balance": -2, "state": {}}
+{"spin": 2, "board": ["BLUE", "GREEN", "YELLOW"], "win": {"type": "all_different", "count": 3, "mult": 5}, "payout": 5, "balance": 2, "state": {}}
+{"spin": 3, "board": ["RED", "GREEN", "GREEN"], "win": null, "payout": 0, "balance": 1, "state": {}}
+{"spin": 4, "board": ["RED", "RED", "GREEN"], "win": null, "payout": 0, "balance": 0, "state": {}}
+{"spin": 5, "board": ["RED", "BLUE", "RED"], "win": null, "payout": 0, "balance": -1, "state": {}}
+{"spin": 6, "board": ["GREEN", "GREEN", "YELLOW"], "win": null, "payout": 0, "balance": -2, "state": {}}
+{"spin": 7, "board": ["RED", "RED", "YELLOW"], "win": null, "payout": 0, "balance": -3, "state": {}}
+{"spin": 8, "board": ["RED", "YELLOW", "BLUE"], "win": {"type": "all_different", "count": 3, "mult": 5}, "payout": 5, "balance": 1, "state": {}}
+{"spin": 9, "board": ["GREEN", "YELLOW", "YELLOW"], "win": null, "payout": 0, "balance": 0, "state": {}}
+{"spin": 10, "board": ["GREEN", "YELLOW", "RED"], "win": {"type": "all_different", "count": 3, "mult": 5}, "payout": 5, "balance": 4, "state": {}}
+{"spin": 11, "board": ["BLUE", "BLUE", "YELLOW"], "win": null, "payout": 0, "balance": 3, "state": {}}
+{"spin": 12, "board": ["GREEN", "GREEN", "YELLOW"], "win": null, "payout": 0, "balance": 2, "state": {}}
+{"spin": 13, "board": ["BLUE", "BLUE", "BLUE"], "win": {"type": "three_same", "count": 3, "mult": 10}, "payout": 10, "balance": 11, "state": {}}
+{"spin": 14, "board": ["BLUE", "YELLOW", "GREEN"], "win": {"type": "all_different", "count": 3, "mult": 5}, "payout": 5, "balance": 15, "state": {}}
+{"spin": 15, "board": ["BLUE", "GREEN", "RED"], "win": {"type": "all_different", "count": 3, "mult": 5}, "payout": 5, "balance": 19, "state": {}}
+{"spin": 16, "board": ["YELLOW", "RED", "YELLOW"], "win": null, "payout": 0, "balance": 18, "state": {}}
+{"spin": 17, "board": ["YELLOW", "BLUE", "RED"], "win": {"type": "all_different", "count": 3, "mult": 5}, "payout": 5, "balance": 22, "state": {}}
+{"spin": 18, "board": ["GREEN", "GREEN", "RED"], "win": null, "payout": 0, "balance": 21, "state": {}}
+{"spin": 19, "board": ["GREEN", "BLUE", "GREEN"], "win": null, "payout": 0, "balance": 20, "state": {}}

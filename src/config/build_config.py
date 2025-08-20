@@ -14,26 +14,48 @@ class BallsRules:
     all_different: int = 0
 
 @dataclass
+class GridBallsRules:
+    bottom_row_all_same: int = 0
+
+@dataclass
 class GameConfig:
     id: str
-    mode: str = "lines"  # "lines" albo "balls"
+    mode: str = "balls"
     bet: int = 1
 
-    # tryb "lines"
+    # lines
     reels: Optional[List[List[str]]] = None
     paytable: Optional[Paytable] = None
 
-    # tryb "balls"
+    # balls (proste 3 kulki)
     colors: Optional[List[str]] = None
     weights: Optional[List[float]] = None
     balls_rules: Optional[BallsRules] = None
 
+    # grid_balls (siatka 3x5)
+    rows: Optional[int] = None
+    cols: Optional[int] = None
+    grid_balls_rules: Optional[GridBallsRules] = None
+
 def load_config(game_id: str) -> GameConfig:
     cfg_path = Path("games") / game_id / "config.json"
     data = json.loads(cfg_path.read_text(encoding="utf-8"))
-    mode = data.get("mode", "lines")
+    mode = data.get("mode", "balls")
 
-    if mode == "balls":
+    if mode == "grid_balls":
+        return GameConfig(
+            id=game_id,
+            mode="grid_balls",
+            bet=data.get("bet", 1),
+            colors=data["colors"],
+            weights=data.get("weights"),
+            rows=int(data["rows"]),
+            cols=int(data["cols"]),
+            grid_balls_rules=GridBallsRules(
+                bottom_row_all_same=data.get("rules", {}).get("bottom_row_all_same", 0)
+            ),
+        )
+    elif mode == "balls":
         return GameConfig(
             id=game_id,
             mode="balls",
@@ -47,7 +69,7 @@ def load_config(game_id: str) -> GameConfig:
             ),
         )
     else:
-        # Kompatybilność z przykładem “lines”
+        # lines
         return GameConfig(
             id=game_id,
             mode="lines",
