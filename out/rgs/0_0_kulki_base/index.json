@@ -1,0 +1,10 @@
+{
+  "modes": [
+    {
+      "name": "base",
+      "cost": 1.0,
+      "events": "base.jsonl.zst",
+      "weights": "lookup_base.csv"
+    }
+  ]
+}
