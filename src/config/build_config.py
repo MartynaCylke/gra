@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Dict, Optional, Tuple
+from typing import List, Dict, Optional, Tuple, Any
 from pathlib import Path
 import json
 
@@ -10,8 +10,7 @@ from .helpers import convert_range_table, read_reels_csv, validate_symbols_on_re
 
 @dataclass
 class Paytable:
-    # Przechowujemy prosty przypadek (np. 3oak) w mapie "three_kind"
-    # oraz ewentualnie pełną mapę (kind, symbol) -> value
+    # Prosta tabela (np. 3oak) i opcjonalnie pełna mapa (kind, symbol) -> wartość
     three_kind: Dict[str, int] = None
     full: Dict[Tuple[int, str], float] = None
 
@@ -32,6 +31,9 @@ class GridBallsRules:
 class Distribution:
     criteria: str
     quota: float
+    win_criteria: Optional[float] = None
+    # np. reel_weights, mult_values, scatter_triggers, force_wincap, force_freegame
+    conditions: Optional[Dict[str, Any]] = None
 
 
 @dataclass
@@ -56,12 +58,12 @@ class GameConfig:
     freegame_type: str = "freegame"
 
     # lines
-    reels: Optional[List[List[str]]] = None           # 3 bębny -> [reel0, reel1, reel2]
+    reels: Optional[List[List[str]]] = None
     paytable: Optional[Paytable] = None
-    special_symbols: Dict[str, List[str]] = None      # {"wild": ["W"], "scatter": ["S"], ...}
-    freespin_triggers: Dict[str, Dict[int, int]] = None  # {"basegame": {3:10,...}, "freegame": {...}}
-    reels_map: Dict[str, str] = None                  # np. {"BR0": "BR0.csv", "FR0": "FR0.csv"}
-    reels_sets: Dict[str, List[List[str]]] = None     # wczytane paski per klucz (BR0, FR0)
+    special_symbols: Dict[str, List[str]] = None
+    freespin_triggers: Dict[str, Dict[int, int]] = None
+    reels_map: Dict[str, str] = None
+    reels_sets: Dict[str, List[List[str]]] = None
 
     # balls
     colors: Optional[List[str]] = None
@@ -76,15 +78,31 @@ class GameConfig:
     # betmodes
     betmodes: List[BetMode] = None
 
+    # (opcjonalnie) rozszerzenia dla lines – dokładne wypłaty 4oak/5oak
+    paytable_4oak: Optional[Dict[str, int]] = None
+    paytable_5oak: Optional[Dict[str, int]] = None
+
 
 def _parse_betmodes(raw: dict, default_cost: float) -> List[BetMode]:
     out: List[BetMode] = []
     modes = raw.get("bet_modes", [])
     if not modes:
-        out.append(BetMode(name="base", cost=float(default_cost), distributions=[Distribution("basegame", 1.0)]))
+        out.append(BetMode(name="base", cost=float(default_cost),
+                           distributions=[Distribution("basegame", 1.0)]))
         return out
+
+    def _dist(d: dict) -> Distribution:
+        crit = str(d.get("criteria", "basegame"))
+        q = float(d.get("quota", 0.0))
+        wc = d.get("win_criteria")
+        if wc is None:
+            # aliasy: winCap / wincap
+            wc = d.get("winCap", d.get("wincap"))
+        cond = d.get("conditions")
+        return Distribution(criteria=crit, quota=q, win_criteria=wc, conditions=cond)
+
     for bm in modes:
-        distributions = [Distribution(d["criteria"], float(d.get("quota", 0.0))) for d in bm.get("distributions", [])]
+        distributions = [_dist(d) for d in bm.get("distributions", [])]
         out.append(
             BetMode(
                 name=bm.get("name", "base"),
@@ -159,22 +177,15 @@ def load_config(game_id: str) -> GameConfig:
         )
 
     # mode == "lines"
-    # Paytable: akceptujemy prosty "3oak" lub pełny "pay_group" (range)
+    # Paytable: wspieramy prosty "3oak". (pay_group – opcjonalnie przez convert_range_table w przyszłości)
     pt_three = None
     pt_full = None
 
     if "paytable" in data and "3oak" in data["paytable"]:
         pt_three = data["paytable"]["3oak"]
 
-    if "pay_group" in data:
-        # JSON kluczami nie mogą być tuple, więc w praktyce przyjmujemy listy: [[min,max], "SYM"]: value
-        # tutaj konwertujemy do dict z krotkami
-        normalized = {}
-        for k, v in data["pay_group"].items():
-            # k jest stringiem – jeśli użyjesz takiej formy, pomiń pay_group; dla uproszczenia nie parsujemy string-key
-            pass  # optional: możesz rozszerzyć pod swój JSON
-        # Jeśli chcesz używać pay_group – lepiej przygotuj w Pythonie, nie JSON.
-
+    # (opcjonalnie) pay_group – pomijamy w minimalnej wersji;
+    # można dodać własny parser JSON -> dict i potem convert_range_table(pay_group)
     paytable = Paytable(three_kind=pt_three, full=pt_full)
 
     special_symbols = data.get("special_symbols", {}) or {}
@@ -183,7 +194,6 @@ def load_config(game_id: str) -> GameConfig:
 
     # Walidacja symboli na bębnach (jeśli mamy paski)
     if reels_sets:
-        # wyciągamy listę symboli z paytable (jeśli three_kind – klucze to symbole)
         pay_syms = set()
         if paytable.three_kind:
             pay_syms.update(paytable.three_kind.keys())
@@ -191,11 +201,14 @@ def load_config(game_id: str) -> GameConfig:
             pay_syms.update(sym for (_, sym) in paytable.full.keys())
         validate_symbols_on_reels(reels_sets, pay_syms, special_symbols)
 
-    # Jeśli chcesz zdefiniować jeden aktywny zestaw (np. BR0) do szybkiej gry "lines",
-    # możesz złożyć reels z jednego klucza (tu BR0) – inaczej użyjesz reels_sets per tryb w swoim runnerze
+    # Jeśli chcesz zdefiniować jeden aktywny zestaw (np. BR0) jako domyślne reels:
     active_lines_reels: Optional[List[List[str]]] = None
     if reels_sets:
         active_lines_reels = next(iter(reels_sets.values()))
+
+    # Wczytaj 4oak/5oak z JSON (jeśli są)
+    pt4 = data.get("paytable", {}).get("4oak")
+    pt5 = data.get("paytable", {}).get("5oak")
 
     return GameConfig(
         id=game_id,
@@ -208,4 +221,7 @@ def load_config(game_id: str) -> GameConfig:
         reels_map=data.get("reels_files") or data.get("reels"),
         reels_sets=reels_sets,
         betmodes=betmodes,
+        paytable_4oak=pt4,   # dokładne 4oak (jeśli są w config.json)
+        paytable_5oak=pt5,   # dokładne 5oak (jeśli są w config.json)
     )
+
