@@ -6,6 +6,30 @@
   "colors": ["RED", "GREEN", "BLUE", "YELLOW"],
   "weights": [1, 1, 1, 1],
   "rules": {
-    "bottom_row_all_same": 20
+  "bottom_row_all_same": 20
+  },
+  
+  "game_id": "0_0_kulki",
+  "provider_number": 0,
+  "working_name": "Kulki 3x5 bottom-row",
+  "wincap": 20,
+  "win_type": "grid_balls",
+  "rtp": 0.0,
+  
+  "bet_modes": [
+  {
+  "name": "base",
+  "cost": 1.0,
+  "rtp": 0.0,
+  "max_win": 20,
+  "auto_close_disabled": false,
+  "is_feature": false,
+  "is_buybonus": false,
+  "distributions": [
+  { "criteria": "winCap", "quota": 0.02 },
+  { "criteria": "0", "quota": 0.78 },
+  { "criteria": "basegame","quota": 0.20 }
+  ]
   }
-}
+  ]
+  }

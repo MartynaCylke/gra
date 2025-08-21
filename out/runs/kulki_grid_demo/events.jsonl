@@ -1,20 +1,10 @@
-{"spin": 0, "board": [["RED", "RED", "GREEN", "RED", "YELLOW"], ["RED", "BLUE", "GREEN", "YELLOW", "RED"], ["GREEN", "GREEN", "RED", "RED", "GREEN"]], "win": null, "payout": 0, "balance": -1, "state": {}}
-{"spin": 1, "board": [["RED", "BLUE", "RED", "GREEN", "GREEN"], ["YELLOW", "RED", "RED", "YELLOW", "RED"], ["YELLOW", "BLUE", "GREEN", "YELLOW", "YELLOW"]], "win": null, "payout": 0, "balance": -2, "state": {}}
-{"spin": 2, "board": [["GREEN", "YELLOW", "RED", "BLUE", "BLUE"], ["YELLOW", "GREEN", "GREEN", "YELLOW", "BLUE"], ["BLUE", "BLUE", "BLUE", "YELLOW", "GREEN"]], "win": null, "payout": 0, "balance": -3, "state": {}}
-{"spin": 3, "board": [["BLUE", "GREEN", "RED", "YELLOW", "RED"], ["YELLOW", "YELLOW", "BLUE", "RED", "GREEN"], ["GREEN", "RED", "GREEN", "BLUE", "GREEN"]], "win": null, "payout": 0, "balance": -4, "state": {}}
-{"spin": 4, "board": [["RED", "RED", "BLUE", "RED", "GREEN"], ["RED", "BLUE", "BLUE", "YELLOW", "BLUE"], ["YELLOW", "YELLOW", "BLUE", "RED", "GREEN"]], "win": null, "payout": 0, "balance": -5, "state": {}}
-{"spin": 5, "board": [["RED", "YELLOW", "GREEN", "YELLOW", "RED"], ["RED", "RED", "GREEN", "GREEN", "GREEN"], ["GREEN", "GREEN", "RED", "RED", "GREEN"]], "win": null, "payout": 0, "balance": -6, "state": {}}
-{"spin": 6, "board": [["RED", "GREEN", "RED", "BLUE", "RED"], ["BLUE", "GREEN", "YELLOW", "GREEN", "GREEN"], ["YELLOW", "GREEN", "GREEN", "BLUE", "YELLOW"]], "win": null, "payout": 0, "balance": -7, "state": {}}
-{"spin": 7, "board": [["YELLOW", "GREEN", "BLUE", "BLUE", "GREEN"], ["RED", "RED", "YELLOW", "RED", "BLUE"], ["BLUE", "RED", "BLUE", "YELLOW", "YELLOW"]], "win": null, "payout": 0, "balance": -8, "state": {}}
-{"spin": 8, "board": [["GREEN", "RED", "YELLOW", "BLUE", "BLUE"], ["YELLOW", "GREEN", "RED", "RED", "BLUE"], ["GREEN", "YELLOW", "BLUE", "YELLOW", "BLUE"]], "win": null, "payout": 0, "balance": -9, "state": {}}
-{"spin": 9, "board": [["GREEN", "YELLOW", "RED", "BLUE", "YELLOW"], ["BLUE", "RED", "BLUE", "BLUE", "GREEN"], ["YELLOW", "GREEN", "GREEN", "BLUE", "RED"]], "win": null, "payout": 0, "balance": -10, "state": {}}
-{"spin": 10, "board": [["GREEN", "GREEN", "YELLOW", "RED", "RED"], ["RED", "YELLOW", "YELLOW", "RED", "BLUE"], ["RED", "GREEN", "GREEN", "BLUE", "YELLOW"]], "win": null, "payout": 0, "balance": -11, "state": {}}
-{"spin": 11, "board": [["YELLOW", "BLUE", "YELLOW", "GREEN", "BLUE"], ["YELLOW", "GREEN", "YELLOW", "BLUE", "GREEN"], ["GREEN", "RED", "BLUE", "RED", "BLUE"]], "win": null, "payout": 0, "balance": -12, "state": {}}
-{"spin": 12, "board": [["YELLOW", "YELLOW", "BLUE", "GREEN", "BLUE"], ["RED", "RED", "YELLOW", "GREEN", "BLUE"], ["GREEN", "GREEN", "YELLOW", "GREEN", "YELLOW"]], "win": null, "payout": 0, "balance": -13, "state": {}}
-{"spin": 13, "board": [["YELLOW", "RED", "YELLOW", "RED", "GREEN"], ["BLUE", "YELLOW", "RED", "BLUE", "GREEN"], ["YELLOW", "RED", "GREEN", "YELLOW", "GREEN"]], "win": null, "payout": 0, "balance": -14, "state": {}}
-{"spin": 14, "board": [["YELLOW", "RED", "GREEN", "RED", "BLUE"], ["YELLOW", "GREEN", "BLUE", "GREEN", "GREEN"], ["BLUE", "RED", "BLUE", "BLUE", "YELLOW"]], "win": null, "payout": 0, "balance": -15, "state": {}}
-{"spin": 15, "board": [["GREEN", "YELLOW", "RED", "RED", "BLUE"], ["BLUE", "GREEN", "RED", "YELLOW", "RED"], ["YELLOW", "YELLOW", "RED", "YELLOW", "GREEN"]], "win": null, "payout": 0, "balance": -16, "state": {}}
-{"spin": 16, "board": [["YELLOW", "YELLOW", "YELLOW", "GREEN", "BLUE"], ["YELLOW", "GREEN", "GREEN", "BLUE", "RED"], ["GREEN", "RED", "GREEN", "GREEN", "BLUE"]], "win": null, "payout": 0, "balance": -17, "state": {}}
-{"spin": 17, "board": [["GREEN", "RED", "RED", "BLUE", "YELLOW"], ["YELLOW", "YELLOW", "GREEN", "YELLOW", "GREEN"], ["GREEN", "RED", "GREEN", "BLUE", "GREEN"]], "win": null, "payout": 0, "balance": -18, "state": {}}
-{"spin": 18, "board": [["RED", "YELLOW", "RED", "YELLOW", "GREEN"], ["YELLOW", "RED", "BLUE", "YELLOW", "GREEN"], ["GREEN", "GREEN", "RED", "RED", "RED"]], "win": null, "payout": 0, "balance": -19, "state": {}}
-{"spin": 19, "board": [["RED", "YELLOW", "RED", "YELLOW", "RED"], ["BLUE", "BLUE", "RED", "YELLOW", "BLUE"], ["YELLOW", "GREEN", "GREEN", "RED", "RED"]], "win": null, "payout": 0, "balance": -20, "state": {}}
+{"spin": 0, "board": null, "win": null, "payout": 0, "balance": -1, "state": {}}
+{"spin": 1, "board": null, "win": null, "payout": 0, "balance": -2, "state": {}}
+{"spin": 2, "board": null, "win": null, "payout": 0, "balance": -3, "state": {}}
+{"spin": 3, "board": null, "win": null, "payout": 0, "balance": -4, "state": {}}
+{"spin": 4, "board": null, "win": null, "payout": 0, "balance": -5, "state": {}}
+{"spin": 5, "board": null, "win": null, "payout": 0, "balance": -6, "state": {}}
+{"spin": 6, "board": null, "win": null, "payout": 0, "balance": -7, "state": {}}
+{"spin": 7, "board": null, "win": null, "payout": 0, "balance": -8, "state": {}}
+{"spin": 8, "board": null, "win": null, "payout": 0, "balance": -9, "state": {}}
+{"spin": 9, "board": null, "win": null, "payout": 0, "balance": -10, "state": {}}

@@ -1,0 +1,29 @@
+{
+  "mode": "grid_balls",
+  "wincap": 20,
+  "bet_modes": [
+    {
+      "name": "base",
+      "cost": 1.0,
+      "rtp": 0.0,
+      "max_win": 20,
+      "auto_close_disabled": false,
+      "is_feature": false,
+      "is_buybonus": false,
+      "distributions": [
+        {
+          "criteria": "winCap",
+          "quota": 0.02
+        },
+        {
+          "criteria": "0",
+          "quota": 0.78
+        },
+        {
+          "criteria": "basegame",
+          "quota": 0.2
+        }
+      ]
+    }
+  ]
+}

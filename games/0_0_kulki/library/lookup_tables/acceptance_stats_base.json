@@ -1,0 +1,13 @@
+{
+  "mode": "base",
+  "N": 1000,
+  "target_counts": {
+    "winCap": 20,
+    "0": 780,
+    "basegame": 200
+  },
+  "attempts": {
+    "avg": 57.565,
+    "max": 1002
+  }
+}
