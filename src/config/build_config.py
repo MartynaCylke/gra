@@ -5,15 +5,50 @@ import json
 
 from .helpers import convert_range_table, read_reels_csv, validate_symbols_on_reels
 
+# --- Normalizacja warunków Distribution ---
+def normalize_conditions(conditions: Dict[str, Any] | None) -> Dict[str, Any]:
+    """
+    Normalizuje nazwy pól w conditions, akceptując różne warianty pisowni:
+      - force_wincap / forceWinCap / force_winCap
+      - force_freegame / forceFreegame / force_freeGame
+      - reel_weights / reels / reelWeights
+      - mult_values / multiplier_values / multValues
+      - scatter_triggers / scatterTriggers
+    Zwraca słownik o kluczach: force_wincap, force_freegame, reel_weights, mult_values, scatter_triggers.
+    """
+    out = {
+        "force_wincap": False,
+        "force_freegame": False,
+        "reel_weights": None,
+        "mult_values": None,
+        "scatter_triggers": None,
+    }
+    if not conditions:
+        return out
+
+    def get_any(keys: Tuple[str, ...], default=None):
+        for k in keys:
+            if k in conditions:
+                return conditions[k]
+        lower = {str(k).lower(): v for k, v in conditions.items()}
+        for k in keys:
+            if k.lower() in lower:
+                return lower[k.lower()]
+        return default
+
+    out["force_wincap"] = bool(get_any(("force_wincap", "forceWinCap", "force_winCap"), False))
+    out["force_freegame"] = bool(get_any(("force_freegame", "forceFreegame", "force_freeGame"), False))
+    out["reel_weights"] = get_any(("reel_weights", "reels", "reelWeights"))
+    out["mult_values"] = get_any(("mult_values", "multiplier_values", "multValues"))
+    out["scatter_triggers"] = get_any(("scatter_triggers", "scatterTriggers"))
+    return out
 
 # --- Bazowe struktury ---
 
 @dataclass
 class Paytable:
-    # Prosta tabela (np. 3oak) i opcjonalnie pełna mapa (kind, symbol) -> wartość
     three_kind: Dict[str, int] = None
     full: Dict[Tuple[int, str], float] = None
-
 
 @dataclass
 class BallsRules:
@@ -21,20 +56,16 @@ class BallsRules:
     two_same: int = 0
     all_different: int = 0
 
-
 @dataclass
 class GridBallsRules:
     bottom_row_all_same: int = 0
-
 
 @dataclass
 class Distribution:
     criteria: str
     quota: float
     win_criteria: Optional[float] = None
-    # np. reel_weights, mult_values, scatter_triggers, force_wincap, force_freegame
     conditions: Optional[Dict[str, Any]] = None
-
 
 @dataclass
 class BetMode:
@@ -47,41 +78,43 @@ class BetMode:
     is_buybonus: bool = False
     distributions: List[Distribution] = None
 
+    # --- NOWA METODA ---
+    def get_distribution_conditions(self) -> List[Dict[str, Any]]:
+        """
+        Zwraca listę znormalizowanych warunków Distribution dla tej instancji BetMode.
+        """
+        out = []
+        if not self.distributions:
+            return out
+        for dist in self.distributions:
+            cond = normalize_conditions(dist.conditions)
+            out.append(cond)
+        return out
 
 @dataclass
 class GameConfig:
-    # Wspólne
     id: str
     mode: str = "balls"
     bet: int = 1
     basegame_type: str = "basegame"
     freegame_type: str = "freegame"
-
-    # lines
     reels: Optional[List[List[str]]] = None
     paytable: Optional[Paytable] = None
     special_symbols: Dict[str, List[str]] = None
     freespin_triggers: Dict[str, Dict[int, int]] = None
     reels_map: Dict[str, str] = None
     reels_sets: Dict[str, List[List[str]]] = None
-
-    # balls
     colors: Optional[List[str]] = None
     weights: Optional[List[float]] = None
     balls_rules: Optional[BallsRules] = None
-
-    # grid_balls
     rows: Optional[int] = None
     cols: Optional[int] = None
     grid_balls_rules: Optional[GridBallsRules] = None
-
-    # betmodes
     betmodes: List[BetMode] = None
-
-    # (opcjonalnie) rozszerzenia dla lines – dokładne wypłaty 4oak/5oak
     paytable_4oak: Optional[Dict[str, int]] = None
     paytable_5oak: Optional[Dict[str, int]] = None
 
+# --- Parsowanie BetModes i Distribution ---
 
 def _parse_betmodes(raw: dict, default_cost: float) -> List[BetMode]:
     out: List[BetMode] = []
@@ -96,9 +129,8 @@ def _parse_betmodes(raw: dict, default_cost: float) -> List[BetMode]:
         q = float(d.get("quota", 0.0))
         wc = d.get("win_criteria")
         if wc is None:
-            # aliasy: winCap / wincap
             wc = d.get("winCap", d.get("wincap"))
-        cond = d.get("conditions")
+        cond = normalize_conditions(d.get("conditions"))
         return Distribution(criteria=crit, quota=q, win_criteria=wc, conditions=cond)
 
     for bm in modes:
@@ -117,13 +149,9 @@ def _parse_betmodes(raw: dict, default_cost: float) -> List[BetMode]:
         )
     return out
 
+# --- Wczytywanie reels dla gry ---
 
 def _load_reels_for_game(game_id: str, raw: dict) -> Dict[str, List[List[str]]]:
-    """
-    Czyta reels z plików CSV wskazanych w raw["reels_files"] (mapa: key->filename),
-    pliki muszą leżeć w games/<id>/reels/.
-    Zwraca: {"BR0": [reel0, reel1, ...], "FR0": [...], ...}
-    """
     reels_sets: Dict[str, List[List[str]]] = {}
     reels_files = raw.get("reels_files") or raw.get("reels")
     if not reels_files or not isinstance(reels_files, dict):
@@ -136,14 +164,13 @@ def _load_reels_for_game(game_id: str, raw: dict) -> Dict[str, List[List[str]]]:
         reels_sets[key] = read_reels_csv(p)
     return reels_sets
 
+# --- Wczytywanie całego configu gry ---
 
 def load_config(game_id: str) -> GameConfig:
     cfg_path = Path("games") / game_id / "config.json"
     data = json.loads(cfg_path.read_text(encoding="utf-8"))
     mode = data.get("mode", "balls")
     bet = data.get("bet", 1)
-
-    # Betmodes (wspólne)
     betmodes = _parse_betmodes(data, default_cost=bet)
 
     if mode == "grid_balls":
@@ -177,22 +204,14 @@ def load_config(game_id: str) -> GameConfig:
         )
 
     # mode == "lines"
-    # Paytable: wspieramy prosty "3oak". (pay_group – opcjonalnie przez convert_range_table w przyszłości)
     pt_three = None
     pt_full = None
-
     if "paytable" in data and "3oak" in data["paytable"]:
         pt_three = data["paytable"]["3oak"]
-
-    # (opcjonalnie) pay_group – pomijamy w minimalnej wersji;
-    # można dodać własny parser JSON -> dict i potem convert_range_table(pay_group)
     paytable = Paytable(three_kind=pt_three, full=pt_full)
-
     special_symbols = data.get("special_symbols", {}) or {}
     freespin_triggers = data.get("freespin_triggers", {}) or {}
     reels_sets = _load_reels_for_game(game_id, data)
-
-    # Walidacja symboli na bębnach (jeśli mamy paski)
     if reels_sets:
         pay_syms = set()
         if paytable.three_kind:
@@ -200,16 +219,11 @@ def load_config(game_id: str) -> GameConfig:
         if paytable.full:
             pay_syms.update(sym for (_, sym) in paytable.full.keys())
         validate_symbols_on_reels(reels_sets, pay_syms, special_symbols)
-
-    # Jeśli chcesz zdefiniować jeden aktywny zestaw (np. BR0) jako domyślne reels:
     active_lines_reels: Optional[List[List[str]]] = None
     if reels_sets:
         active_lines_reels = next(iter(reels_sets.values()))
-
-    # Wczytaj 4oak/5oak z JSON (jeśli są)
     pt4 = data.get("paytable", {}).get("4oak")
     pt5 = data.get("paytable", {}).get("5oak")
-
     return GameConfig(
         id=game_id,
         mode="lines",
@@ -221,7 +235,7 @@ def load_config(game_id: str) -> GameConfig:
         reels_map=data.get("reels_files") or data.get("reels"),
         reels_sets=reels_sets,
         betmodes=betmodes,
-        paytable_4oak=pt4,   # dokładne 4oak (jeśli są w config.json)
-        paytable_5oak=pt5,   # dokładne 5oak (jeśli są w config.json)
+        paytable_4oak=pt4,
+        paytable_5oak=pt5,
     )
 

@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
 from typing import List, Union, Dict, Any, Optional
-from src.config.build_config import GameConfig
+from src.config.build_config import GameConfig, BetMode, Distribution, normalize_conditions
 from src.utils.rng import Rng
 
 BoardType = Union[List[str], List[List[str]]]
+
 
 @dataclass
 class GameState:
@@ -30,13 +31,12 @@ class GameState:
 
     # ------------ State Machine hooks ------------
     def reset_book(self, criteria: Optional[str] = None) -> None:
-        # “Book” = wynik jednej rundy (spinu)
         self.book = {
-            "id": self.sim + 1,             # 1..N
-            "payoutMultiplier": 0,          # int (x bet)
+            "id": self.sim + 1,
+            "payoutMultiplier": 0,
             "events": [] if self.trace else [],
             "criteria": criteria or self.cfg.mode,
-            "baseGameWins": 0,              # proste pola do zgodności z opisem
+            "baseGameWins": 0,
             "freeGameWins": 0,
         }
 
@@ -46,12 +46,10 @@ class GameState:
 
     def finalize_book(self, payout_mult: int) -> Dict[str, Any]:
         self.book["payoutMultiplier"] = int(payout_mult)
-        # prosta kumulacja (cumulative win manager)
         self.totals["spins"] += 1
         if payout_mult > 0:
             self.totals["wins"] += 1
         self.totals["payoutMultSum"] += int(payout_mult)
-        # do biblioteki
         self.library.append(dict(self.book))
         return self.book
 
@@ -60,10 +58,22 @@ class GameState:
         board = self.make_board(rng)
         win = evaluator(board, self.cfg)
         payout_mult = int(win.get("mult", 0)) if win else 0
-        # opcjonalnie zapis eventu do Book (trace)
         self.add_event({"board": board, "win": win or {}})
         return self.finalize_book(payout_mult)
 
-    def snapshot(self):
+    def snapshot(self) -> Dict[str, Any]:
         return {}
 
+    # ------------ Nowa funkcja ------------
+    def get_distribution_conditions(self, betmode_name: str) -> List[Dict[str, Any]]:
+        """
+        Zwraca listę znormalizowanych warunków dystrybucji dla podanego betmode.
+        """
+        bm: Optional[BetMode] = next(
+            (b for b in self.cfg.betmodes if b.name == betmode_name), None
+        )
+        if not bm:
+            raise ValueError(f"BetMode o nazwie '{betmode_name}' nie istnieje w konfiguracji.")
+
+        # Korzystamy z metody BetMode.get_distribution_conditions, aby mieć zawsze znormalizowane warunki
+        return bm.get_distribution_conditions()
