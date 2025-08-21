@@ -1,10 +1,15 @@
 from typing import List, Dict, Any
 from src.config.build_config import GameConfig, BallsRules
+from src.symbol.symbol import Symbol
 
-def evaluate_balls(board: List[str], cfg: GameConfig) -> Dict[str, Any]:
-    # Zasady: 3 te same, 3 różne, 2 te same
+
+def evaluate_balls(board: List[Symbol], cfg: GameConfig) -> Dict[str, Any]:
+    """
+    Zasady: 3 te same, 3 różne, 2 te same.
+    """
     rules: BallsRules = cfg.balls_rules or BallsRules()
-    s = set(board)
+    names = [s.name for s in board]
+    s = set(names)
 
     if len(s) == 1:
         mult = rules.three_same
