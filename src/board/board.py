@@ -1,4 +1,4 @@
-from typing import List, Dict
+from typing import List, Dict, Any
 import random
 from src.config.build_config import GameConfig
 from src.symbol.symbol import Symbol
@@ -11,8 +11,13 @@ class Board:
         self.include_padding = getattr(cfg, "include_padding", False)
 
         # Top i bottom symbols jeśli include_padding = True
-        self.top_symbols: List[Symbol] = [Symbol(random.choice(cfg.colors)) for _ in range(self.cols)] if self.include_padding else []
-        self.bottom_symbols: List[Symbol] = [Symbol(random.choice(cfg.colors)) for _ in range(self.cols)] if self.include_padding else []
+        self.top_symbols: List[Symbol] = [
+            Symbol(name=random.choice(cfg.colors), config=cfg) for _ in range(self.cols)
+        ] if self.include_padding else []
+
+        self.bottom_symbols: List[Symbol] = [
+            Symbol(name=random.choice(cfg.colors), config=cfg) for _ in range(self.cols)
+        ] if self.include_padding else []
 
         # 2D plansza
         self.board: List[List[Symbol]] = self._generate_board()
@@ -25,19 +30,14 @@ class Board:
         for r in range(self.rows):
             row = []
             for c in range(self.cols):
-                sym_name = random.choice(self.cfg.colors)
-                row.append(Symbol(sym_name))
+                sym_name = random.choice(self.cfg.colors)  # używamy colors, nie symbols
+                row.append(Symbol(name=sym_name, config=self.cfg))  # teraz przekazujemy config
             board.append(row)
         return board
 
-    def generate(self, rng=None) -> List[List[Symbol]]:
-        # rng nieużywane, zostawione do kompatybilności z run_game.py
-        self.board = self._generate_board()
-        return self.board
-
     def _scan_special_symbols(self) -> Dict[str, List[Dict[str, int]]]:
         special_symbols_on_board = {}
-        special_cfg = getattr(self.cfg, "special_symbols", {})
+        special_cfg = getattr(self.cfg, "special_symbols", {}) or {}
         for prop, symbols in special_cfg.items():
             special_symbols_on_board[prop] = []
             for r, row in enumerate(self.board):
