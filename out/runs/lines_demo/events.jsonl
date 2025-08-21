@@ -1,0 +1,20 @@
+{"spin": 0, "board": ["K", "K", "S", "Q", "K"], "win": null, "payout": 0, "balance": -1, "state": {}}
+{"spin": 1, "board": ["Q", "Q", "K", "A", "A"], "win": null, "payout": 0, "balance": -2, "state": {}}
+{"spin": 2, "board": ["K", "K", "Q", "A", "K"], "win": null, "payout": 0, "balance": -3, "state": {}}
+{"spin": 3, "board": ["J", "A", "Q", "J", "J"], "win": null, "payout": 0, "balance": -4, "state": {}}
+{"spin": 4, "board": ["J", "A", "J", "Q", "Q"], "win": null, "payout": 0, "balance": -5, "state": {}}
+{"spin": 5, "board": ["A", "A", "Q", "K", "K"], "win": null, "payout": 0, "balance": -6, "state": {}}
+{"spin": 6, "board": ["A", "A", "A", "Q", "A"], "win": {"line": 0, "symbol": "A", "count": 3, "mult": 5}, "payout": 5, "balance": -2, "state": {}}
+{"spin": 7, "board": ["K", "Q", "J", "A", "A"], "win": null, "payout": 0, "balance": -3, "state": {}}
+{"spin": 8, "board": ["A", "K", "S", "J", "Q"], "win": null, "payout": 0, "balance": -4, "state": {}}
+{"spin": 9, "board": ["J", "Q", "J", "A", "J"], "win": null, "payout": 0, "balance": -5, "state": {}}
+{"spin": 10, "board": ["W", "K", "Q", "J", "K"], "win": null, "payout": 0, "balance": -6, "state": {}}
+{"spin": 11, "board": ["K", "K", "K", "Q", "S"], "win": {"line": 0, "symbol": "K", "count": 3, "mult": 4}, "payout": 4, "balance": -3, "state": {}}
+{"spin": 12, "board": ["J", "Q", "J", "Q", "Q"], "win": null, "payout": 0, "balance": -4, "state": {}}
+{"spin": 13, "board": ["A", "J", "Q", "J", "K"], "win": null, "payout": 0, "balance": -5, "state": {}}
+{"spin": 14, "board": ["W", "Q", "Q", "K", "J"], "win": {"line": 0, "symbol": "Q", "count": 3, "mult": 3}, "payout": 3, "balance": -3, "state": {}}
+{"spin": 15, "board": ["J", "J", "A", "A", "Q"], "win": null, "payout": 0, "balance": -4, "state": {}}
+{"spin": 16, "board": ["J", "A", "Q", "J", "K"], "win": null, "payout": 0, "balance": -5, "state": {}}
+{"spin": 17, "board": ["A", "K", "J", "Q", "S"], "win": null, "payout": 0, "balance": -6, "state": {}}
+{"spin": 18, "board": ["J", "K", "Q", "Q", "Q"], "win": null, "payout": 0, "balance": -7, "state": {}}
+{"spin": 19, "board": ["K", "J", "A", "Q", "A"], "win": null, "payout": 0, "balance": -8, "state": {}}

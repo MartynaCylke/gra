@@ -1,10 +1,43 @@
 {
   "mode": "lines",
   "bet": 1,
-  "reels": [
-    ["A","K","Q","J","W","A","K","Q","J","A"],
-    ["A","K","Q","J","W","A","K","Q","J","K"],
-    ["A","K","Q","J","W","A","K","Q","J","Q"]
-  ],
-  "paytable": { "3oak": { "A": 5, "K": 4, "Q": 3, "J": 2 } }
+  
+  "special_symbols": {
+  "wild": ["W"],
+  "scatter": ["S"]
+  },
+  
+  "paytable": {
+  "3oak": { "A": 5, "K": 4, "Q": 3, "J": 2 },
+  "4oak": { "A": 10, "K": 8, "Q": 6, "J": 4 },
+  "5oak": { "A": 20, "K": 16, "Q": 12, "J": 8 }
+  },
+
+  "reels_files": {
+    "BR0": "BR0.csv",
+    "FR0": "FR0.csv"
+  },
+
+  "freespin_triggers": {
+    "basegame": { "3": 8, "4": 10, "5": 12 },
+    "freegame": { "3": 5 }
+  },
+
+  "bet_modes": [
+    {
+      "name": "base",
+      "cost": 1.0,
+      "rtp": 0.0,
+      "max_win": 100.0,
+      "auto_close_disabled": false,
+      "is_feature": false,
+      "is_buybonus": false,
+      "distributions": [
+        { "criteria": "winCap",  "quota": 0.01 },
+        { "criteria": "freegame","quota": 0.09 },
+        { "criteria": "0",       "quota": 0.50 },
+        { "criteria": "basegame","quota": 0.40 }
+      ]
+    }
+  ]
 }
