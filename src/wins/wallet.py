@@ -7,10 +7,16 @@ class Wallet:
     cfg: GameConfig
     balance: int = 0
 
-    def settle(self, win: Dict[str, Any]) -> int:
+    def settle(self, win_data: Dict[str, Any]) -> int:
+        """
+        Aktualizuje balans na podstawie całego win_data.
+        win_data powinno mieć strukturę:
+        {
+            "totalWin": float,
+            "wins": [ ... ]
+        }
+        """
         bet = self.cfg.bet
-        payout = 0
-        if win:
-            payout = int(win.get("mult", 0)) * bet
+        payout = int(win_data.get("totalWin", 0))
         self.balance += -bet + payout
         return payout
