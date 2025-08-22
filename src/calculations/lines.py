@@ -4,18 +4,14 @@ from src.symbol.symbol import Symbol
 
 
 def _wild_set(cfg: GameConfig) -> set:
-    """
-    Zwraca zbiór symboli Wild z configu (domyślnie {'W'})
-    """
+    """Zwraca zbiór symboli Wild z configu (domyślnie {'W'})"""
     if cfg.special_symbols and isinstance(cfg.special_symbols.get("wild"), list):
         return set(cfg.special_symbols["wild"])
     return {"W"}
 
 
 def _best_symbol_for_all_wilds(cfg: GameConfig) -> str:
-    """
-    Jeśli pierwsze 3 pozycje to same Wildy, wybierz symbol o najwyższej wypłacie z 3oak
-    """
+    """Jeśli wszystkie symbole to Wildy, wybierz symbol o najwyższej wypłacie z paytable"""
     if cfg.paytable and cfg.paytable.three_kind:
         return max(cfg.paytable.three_kind.items(), key=lambda kv: kv[1])[0]
     return "A"
@@ -23,25 +19,34 @@ def _best_symbol_for_all_wilds(cfg: GameConfig) -> str:
 
 def evaluate_single_line(board: List[Symbol], cfg: GameConfig) -> Dict[str, Any]:
     """
-    Minimalny evaluator 3‑bębnowy: ocenia TYLKO pierwsze 3 pozycje board (od lewej),
-    z obsługą Wild (substytut). Zwraca {} gdy brak wygranej.
+    Evaluator liniowy: obsługuje dowolną długość boardu (3,4,5),
+    z uwzględnieniem Wild jako substytutów.
+    Zwraca {} gdy brak wygranej.
     """
     if not isinstance(board, list) or len(board) < 3 or not cfg.paytable or not cfg.paytable.three_kind:
         return {}
 
     wilds = _wild_set(cfg)
+    # pierwszy symbol nie-Wild lub najlepszy, jeśli same Wildy
+    target_symbol = next((s for s in board if s.name not in wilds), None)
+    target_name = target_symbol.name if target_symbol else _best_symbol_for_all_wilds(cfg)
 
-    s0, s1, s2 = board[0], board[1], board[2]
+    def matches(sym: Symbol, name: str) -> bool:
+        return sym.name == name or sym.name in wilds or name in wilds
 
-    # wybierz symbol do rozliczenia: pierwszy nie‑Wild z lewej; gdy same Wildy → najlepszy z 3oak
-    target = next((s for s in (s0, s1, s2) if s.name not in wilds), None) or _best_symbol_for_all_wilds(cfg)
-    
-    def matches(a: Symbol, b_name: str) -> bool:
-        return (a.name == b_name) or (a.name in wilds) or (b_name in wilds)
+    # liczymy ile kolejnych symboli pasuje do target_name
+    count = 0
+    for sym in board:
+        if matches(sym, target_name):
+            count += 1
+        else:
+            break  # linia kończy się przy pierwszym niepasującym
 
-    if matches(s0, target) and matches(s1, target) and matches(s2, target):
-        mult = int(cfg.paytable.three_kind.get(target, 0))
-        if mult > 0:
-            return {"line": 0, "symbol": target, "count": 3, "mult": mult}
+    # sprawdzamy paytable wg liczby symboli w linii
+    mult = cfg.paytable.three_kind.get(target_name) if count >= 3 else 0
+    # jeśli masz paytable dla 4 i 5, można rozbudować tutaj dynamicznie
+
+    if mult > 0 and count >= 3:
+        return {"line": 0, "symbol": target_name, "count": count, "mult": mult}
 
     return {}

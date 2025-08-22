@@ -1,34 +1,42 @@
-from typing import List, Dict
-from src.wins.win_data import create_win_data, add_win
+from typing import List, Dict, Any
 from src.config.build_config import GameConfig
 from src.symbol.symbol import Symbol
 
-def calculate_line_wins(board: List[List[Symbol]], cfg: GameConfig) -> Dict[str, any]:
-    """
-    Wylicza wygrane dla klasycznych linii (lines pays)
-    """
-    win_data = create_win_data()
 
-    # cfg.paylines = lista list pozycji symboli dla każdej linii
-    # przykładowo: [[(0,0),(1,0),(2,0)], [(0,1),(1,1),(2,1)], ...]
-    for line_index, line in enumerate(cfg.paylines):
-        first_symbol = board[line[0][1]][line[0][0]]  # board[row][col]
-        match_count = 1
-        positions = [{"reel": line[0][0], "row": line[0][1]}]
+def _wild_set(cfg: GameConfig) -> set:
+    if cfg.special_symbols and isinstance(cfg.special_symbols.get("wild"), list):
+        return set(cfg.special_symbols["wild"])
+    return {"W"}
 
-        for pos in line[1:]:
-            row, col = pos[1], pos[0]
-            sym = board[row][col]
-            if sym.name == first_symbol.name:
-                match_count += 1
-                positions.append({"reel": col, "row": row})
-            else:
-                break
 
-        if match_count >= cfg.min_match_count:  # minimalna liczba symboli do wygranej
-            # wyliczamy wygraną dla tej linii
-            base_win = cfg.paytable.get(first_symbol.name, {}).get(match_count, 0)
-            add_win(win_data, first_symbol.name, match_count, base_win, positions, 
-                    {"lineIndex": line_index})
+def _best_symbol_for_all_wilds(cfg: GameConfig) -> str:
+    if cfg.paytable and cfg.paytable.three_kind:
+        return max(cfg.paytable.three_kind.items(), key=lambda kv: kv[1])[0]
+    return "A"
 
-    return win_data
+
+def evaluate_single_line(board: List[Symbol], cfg: GameConfig, line_index: int = 0) -> Dict[str, Any]:
+    if not board or not cfg.paytable or not cfg.paytable.three_kind:
+        return {}
+
+    wilds = _wild_set(cfg)
+
+    # target symbol: pierwszy nie-wild lub najlepszy symbol z paytable
+    target_symbol = next((s for s in board if s.name not in wilds), None)
+    target_name = target_symbol.name if target_symbol else _best_symbol_for_all_wilds(cfg)
+
+    # liczymy ile symboli od lewej pasuje do target_name
+    count = 0
+    for s in board:
+        if s.name == target_name or s.name in wilds:
+            count += 1
+        else:
+            break
+
+    # dopasowanie do paytable
+    mult = cfg.paytable.three_kind.get(target_name, 0) if count >= 3 else 0
+
+    if mult > 0:
+        return {"line": line_index, "symbol": target_name, "count": count, "mult": mult}
+
+    return {}

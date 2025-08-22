@@ -1,11 +1,11 @@
-from typing import List, Dict, Any, Optional
+from typing import List, Dict, Any
 from src.config.build_config import GameConfig
 from src.symbol.symbol import Symbol
 
 
 def _wild_set(cfg: GameConfig) -> set:
     """
-    Zwraca zbiór symboli Wild z configu (domyślnie {'W'}).
+    Zwraca zbiór symboli Wild z configu (domyślnie {'W'})
     """
     if cfg.special_symbols and isinstance(cfg.special_symbols.get("wild"), list):
         return set(cfg.special_symbols["wild"])
@@ -14,71 +14,35 @@ def _wild_set(cfg: GameConfig) -> set:
 
 def _best_symbol_for_all_wilds(cfg: GameConfig) -> str:
     """
-    Jeśli cała linia to Wildy, wybierz symbol o najwyższej wypłacie (na podstawie 3oak).
+    Jeśli pierwsze 3 pozycje to same Wildy, wybierz symbol o najwyższej wypłacie z 3oak
     """
     if cfg.paytable and cfg.paytable.three_kind:
         return max(cfg.paytable.three_kind.items(), key=lambda kv: kv[1])[0]
     return "A"
 
 
-def _read_extra_paytable(cfg: GameConfig, key: str) -> Optional[Dict[str, int]]:
-    try:
-        return getattr(cfg, key)
-    except Exception:
-        return None
-
-
-def evaluate_lines_5reel(board: List[Symbol], cfg: GameConfig) -> Dict[str, Any]:
+def evaluate_single_line(board: List[Symbol], cfg: GameConfig) -> Dict[str, Any]:
     """
-    Evaluator dla pojedynczej linii 5-bębnowej (od lewej, Wild zastępuje).
-    Zwraca dict np. {"line": 0, "symbol": "A", "count": 4, "mult": 10} lub {} gdy brak wygranej.
+    Minimalny evaluator 3‑bębnowy: ocenia TYLKO pierwsze 3 pozycje board (od lewej),
+    z obsługą Wild (substytut). Zwraca {} gdy brak wygranej.
     """
-    if not isinstance(board, list) or len(board) < 5:
+    if not isinstance(board, list) or len(board) < 3 or not cfg.paytable or not cfg.paytable.three_kind:
         return {}
 
     wilds = _wild_set(cfg)
 
-    # Wyznacz symbol celu: pierwszy nie-wild z lewej
-    target = None
-    for s in board:
-        if s.name not in wilds:
-            target = s.name
-            break
-    if target is None:
-        target = _best_symbol_for_all_wilds(cfg)
+    s0, s1, s2 = board[0], board[1], board[2]
 
-    # Policz ile kolejnych symboli od lewej pasuje (target lub Wild)
-    n = 0
-    for s in board:
-        if s.name == target or s.name in wilds:
-            n += 1
-        else:
-            break
+    # wybierz symbol do rozliczenia: pierwszy nie-Wild z lewej; gdy same Wildy → najlepszy z 3oak
+    target_symbol = next((s for s in (s0, s1, s2) if s.name not in wilds), None)
+    target_name = target_symbol.name if target_symbol else _best_symbol_for_all_wilds(cfg)
 
-    if n < 3 or not cfg.paytable:
-        return {}
+    def matches(a: Symbol, b_name: str) -> bool:
+        return (a.name == b_name) or (a.name in wilds) or (b_name in wilds)
 
-    three_map = cfg.paytable.three_kind or {}
-    four_map = _read_extra_paytable(cfg, "paytable_4oak")
-    five_map = _read_extra_paytable(cfg, "paytable_5oak")
+    if matches(s0, target_name) and matches(s1, target_name) and matches(s2, target_name):
+        mult = int(cfg.paytable.three_kind.get(target_name, 0))
+        if mult > 0:
+            return {"line": 0, "symbol": target_name, "count": 3, "mult": mult}
 
-    mult = 0
-    if n >= 5:
-        if five_map and target in five_map:
-            mult = int(five_map[target])
-        else:
-            base = int(three_map.get(target, 0))
-            mult = 4 * base
-    elif n == 4:
-        if four_map and target in four_map:
-            mult = int(four_map[target])
-        else:
-            base = int(three_map.get(target, 0))
-            mult = 2 * base
-    else:
-        mult = int(three_map.get(target, 0))
-
-    if mult <= 0:
-        return {}
-
-    return {"line": 0, "symbol": target, "count": n, "mult": mult}
+    return {}
