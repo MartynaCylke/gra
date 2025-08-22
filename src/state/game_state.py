@@ -11,8 +11,8 @@ BoardType = Union[List[str], List[List[str]]]
 @dataclass
 class GameState:
     cfg: GameConfig
-    sim: int = 0  # indeks spinu (0..N-1)
-    trace: bool = False  # gdy True, Book zawiera szczegółowe events
+    sim: int = 0
+    trace: bool = False
     book: Dict[str, Any] = field(default_factory=dict)
     library: List[Dict[str, Any]] = field(default_factory=list)
     totals: Dict[str, Any] = field(default_factory=lambda: {"spins": 0, "wins": 0, "payoutMultSum": 0})
@@ -33,7 +33,6 @@ class GameState:
             assert self.cfg.reels, "Brak 'reels' w configu gry lines"
             return [rng.choice(reel) for reel in self.cfg.reels]
 
-    # ------------ State Machine hooks ------------
     def reset_book(self, criteria: Optional[str] = None) -> None:
         self.book = {
             "id": self.sim + 1,
@@ -42,6 +41,7 @@ class GameState:
             "criteria": criteria or self.cfg.mode,
             "baseGameWins": 0,
             "freeGameWins": 0,
+            "scatterWins": 0,
         }
 
     def add_event(self, ev: Dict[str, Any]) -> None:
@@ -58,45 +58,44 @@ class GameState:
         return self.book
 
     def run_spin(self, rng: Rng, evaluator) -> Dict[str, Any]:
-        """
-        Wykonuje pojedynczy spin, generuje board, ocenia wygrane i dodaje eventy.
-        """
         self.reset_book(criteria=self.cfg.mode)
 
-        # --- wygeneruj board ---
         raw_board = self.make_board(rng)
-        # Zamień każdy symbol na obiekt Symbol
-        if isinstance(raw_board[0], list):  # grid_balls
+        if isinstance(raw_board[0], list):
             board = [[Symbol(self.cfg, s) for s in row] for row in raw_board]
         else:
             board = [Symbol(self.cfg, s) for s in raw_board]
 
-        self.last_board = board  # potrzebne do eventów
+        self.last_board = board
 
-        # --- event rozpoczęcia spinu ---
         create_spin_event(self)
 
-        # --- oblicz wygraną ---
         win = evaluator(board, self.cfg)
         payout_mult = int(win.get("mult", 0)) if win else 0
 
-        # --- event wygranej (jeśli jest) ---
         if win:
             create_win_event(self, symbol=win.get("symbol"), count=win.get("count"), mult=win.get("mult"))
 
-        # --- event freespinu (jeśli dotyczy) ---
+        # --- obsługa scatter ---
+        scatter_symbol = getattr(self.cfg, "scatter", None)
+        if not scatter_symbol and self.cfg.special_symbols:
+            scatter_symbol = self.cfg.special_symbols.get("scatter", [None])[0]
+        scatter_count = sum(1 for s in board if s.name == scatter_symbol) if scatter_symbol else 0
+        scatter_wins = 0
+        if scatter_count >= 3:
+            self.free_spins += 10
+            scatter_wins = scatter_count
+            self.add_event({"type": "scatter_event", "symbol": scatter_symbol, "count": scatter_count, "wins": scatter_wins})
+        self.book["scatterWins"] = scatter_wins
+
         if self.free_spins > 0:
             update_freespin_event(self)
 
-        # --- dodaj board i wygraną do book jako spin_result event ---
-        self.add_event({"type": "spin_result", "board": board, "win": win or {}})
+        self.add_event({"type": "spin_result", "board": board, "win": win or {}, "scatterWins": scatter_wins})
 
         return self.finalize_book(payout_mult)
 
     def snapshot(self) -> Dict[str, Any]:
-        """
-        Zwraca stan gry do front-endu (bez spinów).
-        """
         return {
             "last_board": self.last_board,
             "free_spins": self.free_spins,
@@ -104,16 +103,8 @@ class GameState:
             "current_book": self.book.copy(),
         }
 
-    # ------------ Nowa funkcja ------------
     def get_distribution_conditions(self, betmode_name: str) -> List[Dict[str, Any]]:
-        """
-        Zwraca listę znormalizowanych warunków dystrybucji dla podanego betmode.
-        """
-        bm: Optional[BetMode] = next(
-            (b for b in self.cfg.betmodes if b.name == betmode_name), None
-        )
+        bm: Optional[BetMode] = next((b for b in self.cfg.betmodes if b.name == betmode_name), None)
         if not bm:
             raise ValueError(f"BetMode o nazwie '{betmode_name}' nie istnieje w konfiguracji.")
-
-        # Korzystamy z metody BetMode.get_distribution_conditions, aby mieć zawsze znormalizowane warunki
         return bm.get_distribution_conditions()

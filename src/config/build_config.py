@@ -7,15 +7,6 @@ from .helpers import convert_range_table, read_reels_csv, validate_symbols_on_re
 
 # --- Normalizacja warunków Distribution ---
 def normalize_conditions(conditions: Dict[str, Any] | None) -> Dict[str, Any]:
-    """
-    Normalizuje nazwy pól w conditions, akceptując różne warianty pisowni:
-      - force_wincap / forceWinCap / force_winCap
-      - force_freegame / forceFreegame / force_freeGame
-      - reel_weights / reels / reelWeights
-      - mult_values / multiplier_values / multValues
-      - scatter_triggers / scatterTriggers
-    Zwraca słownik o kluczach: force_wincap, force_freegame, reel_weights, mult_values, scatter_triggers.
-    """
     out = {
         "force_wincap": False,
         "force_freegame": False,
@@ -78,11 +69,7 @@ class BetMode:
     is_buybonus: bool = False
     distributions: List[Distribution] = None
 
-    # --- NOWA METODA ---
     def get_distribution_conditions(self) -> List[Dict[str, Any]]:
-        """
-        Zwraca listę znormalizowanych warunków Distribution dla tej instancji BetMode.
-        """
         out = []
         if not self.distributions:
             return out
@@ -239,3 +226,24 @@ def load_config(game_id: str) -> GameConfig:
         paytable_5oak=pt5,
     )
 
+# --- NOWA FUNKCJA: build_test_config ---
+def build_test_config(reels: Optional[List[List[str]]] = None, scatter: Optional[str] = None) -> GameConfig:
+    """
+    Tworzy minimalną konfigurację gry do testów.
+    """
+    # minimalna paytable z 3 symbolami, żeby scatter działał w testach
+    paytable = Paytable(three_kind={"S": 1, "A": 1, "B": 1})
+
+    cfg = GameConfig(
+        id="test",
+        mode="lines",
+        colors=["A", "B", "C", "S"],
+        reels=reels or [["S", "A", "B", "C"]]*5,
+        betmodes=[BetMode(name="test", cost=1.0, distributions=[])],
+        paytable=paytable,
+        weights=None,
+        rows=1,
+        cols=5,
+        special_symbols={"wild": ["W"], "scatter": [scatter]} if scatter else {"wild": ["W"]},
+    )
+    return cfg

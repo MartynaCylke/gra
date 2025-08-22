@@ -25,3 +25,23 @@ class Rng:
 
     def set_state(self, s):
         self._rng.setstate(s)
+
+
+# --- Dodajemy DummyRng do testów ---
+class DummyRng:
+    """RNG zwracający zawsze kolejne wartości z listy podanej w initializerze"""
+    def __init__(self, values: List[Any]):
+        self.values = list(values)
+        self.index = 0
+
+    def choice(self, _):
+        # ignorujemy argument (np. reel), zwracamy po kolei z listy values
+        if self.index >= len(self.values):
+            self.index = 0
+        val = self.values[self.index]
+        self.index += 1
+        return val
+
+    def choice_weighted(self, seq: Sequence[Any], weights: Optional[Sequence[float]] = None):
+        # ignorujemy weights, po prostu zwracamy po kolei
+        return self.choice(seq)
