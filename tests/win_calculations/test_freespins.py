@@ -35,5 +35,5 @@ def test_freespin_event():
     # --- sprawdzamy, że free spins zmniejszyły się po spinie ---
     assert gs.free_spins >= 0, "Free spins powinny być liczbą >= 0"
 
-    # --- i że pojawił się event free spin ---
-    assert any(ev["type"] == "freespin_event" for ev in result.get("events", [])), "Brak eventu freespin"
+    # --- i że pojawił się event freespin ---
+    assert any(ev["type"] == "freespin_update" for ev in result.get("events", [])), "Brak eventu freespin"
