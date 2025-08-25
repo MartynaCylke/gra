@@ -1,18 +1,25 @@
 import pytest
 from state.game_state import GameState
 from calculations.lines import evaluate_single_line
-from tests.utils.dummy import DummyRng, build_test_config, Symbol
+
+# Poprawione importy
+from utils.rng import DummyRng
+from config.build_config import build_test_config
+from symbol.symbol import Symbol
 
 
 def test_freespin_event():
+    # --- konfiguracja gry z free spins + scatter ---
     cfg = build_test_config(
         reels=[["A", "B"], ["A", "B"], ["A", "B"], ["A", "B"], ["A", "B"]],
         scatter="S"
     )
 
+    # ustawiamy początkowe free spins
     gs = GameState(cfg, trace=True, free_spins=3)
     gs.reset_book(criteria=cfg.mode)
 
+    # --- wymuszony board (ze scatterami, żeby odpalił event free spin) ---
     board = [
         Symbol(cfg, "S"),
         Symbol(cfg, "A"),
@@ -25,5 +32,8 @@ def test_freespin_event():
 
     result = gs.run_spin(rng, evaluate_single_line)
 
+    # --- sprawdzamy, że free spins zmniejszyły się po spinie ---
     assert gs.free_spins >= 0, "Free spins powinny być liczbą >= 0"
+
+    # --- i że pojawił się event free spin ---
     assert any(ev["type"] == "freespin_event" for ev in result.get("events", [])), "Brak eventu freespin"
