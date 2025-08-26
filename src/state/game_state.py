@@ -2,11 +2,16 @@ from dataclasses import dataclass, field
 from typing import List, Union, Dict, Any, Optional
 from src.config.build_config import GameConfig, BetMode
 from src.utils.rng import Rng
-from src.events.events import create_spin_event, update_freespin_event, create_win_event
+from src.events.events import (
+    create_spin_event,
+    update_freespin_event,
+    create_win_event,
+    create_bonus_event,
+    create_multiplier_event
+)
 from src.symbol.symbol import Symbol
 
 BoardType = Union[List[str], List[List[str]]]
-
 
 @dataclass
 class GameState:
@@ -45,7 +50,11 @@ class GameState:
         }
 
     def add_event(self, ev: Dict[str, Any]) -> None:
+        """
+        Dodaje event do book i ustawia automatycznie pole 'index'.
+        """
         if self.trace and isinstance(self.book.get("events"), list):
+            ev["index"] = len(self.book["events"])
             self.book["events"].append(ev)
 
     def finalize_book(self, payout_mult: int) -> Dict[str, Any]:
@@ -58,25 +67,27 @@ class GameState:
         return self.book
 
     def run_spin(self, rng: Rng, evaluator) -> Dict[str, Any]:
+        # --- resetujemy book ---
         self.reset_book(criteria=self.cfg.mode)
 
+        # --- generujemy board ---
         raw_board = self.make_board(rng)
         if isinstance(raw_board[0], list):
             board = [[Symbol(self.cfg, s) for s in row] for row in raw_board]
         else:
             board = [Symbol(self.cfg, s) for s in raw_board]
-
         self.last_board = board
 
+        # --- spin_start event ---
         create_spin_event(self)
 
+        # --- evaluator (line win / wygrane) ---
         win = evaluator(board, self.cfg)
         payout_mult = int(win.get("mult", 0)) if win else 0
-
         if win:
             create_win_event(self, symbol=win.get("symbol"), count=win.get("count"), mult=win.get("mult"))
 
-        # --- obsługa scatter ---
+        # --- obsługa scatter / free spins ---
         scatter_symbol = getattr(self.cfg, "scatter", None)
         if not scatter_symbol and self.cfg.special_symbols:
             scatter_symbol = self.cfg.special_symbols.get("scatter", [None])[0]
@@ -85,13 +96,31 @@ class GameState:
         if scatter_count >= 3:
             self.free_spins += 10
             scatter_wins = scatter_count
-            self.add_event({"type": "scatter_event", "symbol": scatter_symbol, "count": scatter_count, "wins": scatter_wins})
+            self.add_event({
+                "type": "scatter_event",
+                "symbol": scatter_symbol,
+                "count": scatter_count,
+                "wins": scatter_wins
+            })
         self.book["scatterWins"] = scatter_wins
 
+        # --- aktualizacja free spins ---
         if self.free_spins > 0:
             update_freespin_event(self)
 
-        self.add_event({"type": "spin_result", "board": board, "win": win or {}, "scatterWins": scatter_wins})
+        # --- dodatkowe eventy (bonusy i mnożniki) ---
+        if getattr(self.cfg, "multiplier", None):
+            create_multiplier_event(self, self.cfg.multiplier)
+        if getattr(self.cfg, "bonus", None):
+            create_bonus_event(self, bonus_type=self.cfg.bonus, value=10)
+
+        # --- spin_result event ---
+        self.add_event({
+            "type": "spin_result",
+            "board": board,
+            "win": win or {},
+            "scatterWins": scatter_wins
+        })
 
         return self.finalize_book(payout_mult)
 

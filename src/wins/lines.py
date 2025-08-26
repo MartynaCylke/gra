@@ -4,39 +4,49 @@ from src.symbol.symbol import Symbol
 
 
 def _wild_set(cfg: GameConfig) -> set:
+    """Zwraca zbiór symboli Wild z configu (domyślnie {'W'})"""
     if cfg.special_symbols and isinstance(cfg.special_symbols.get("wild"), list):
         return set(cfg.special_symbols["wild"])
     return {"W"}
 
 
 def _best_symbol_for_all_wilds(cfg: GameConfig) -> str:
+    """Jeśli wszystkie symbole to Wildy, wybierz symbol o najwyższej wypłacie z paytable"""
     if cfg.paytable and cfg.paytable.three_kind:
-        return max(cfg.paytable.three_kind.items(), key=lambda kv: kv[1])[0]
+        # zabezpieczenie przed None i pustym słownikiem
+        return max(cfg.paytable.three_kind.items(), key=lambda kv: kv[1])[0] if cfg.paytable.three_kind else "A"
     return "A"
 
 
-def evaluate_single_line(board: List[Symbol], cfg: GameConfig, line_index: int = 0) -> Dict[str, Any]:
-    if not board or not cfg.paytable or not cfg.paytable.three_kind:
+def evaluate_single_line(board: List[Symbol], cfg: GameConfig) -> Dict[str, Any]:
+    """
+    Evaluator liniowy: obsługuje dowolną długość boardu (3,4,5),
+    z uwzględnieniem Wild jako substytutów.
+    Zwraca {} gdy brak wygranej.
+    """
+    if not isinstance(board, list) or len(board) < 3 or not cfg.paytable or not cfg.paytable.three_kind:
         return {}
 
     wilds = _wild_set(cfg)
-
-    # target symbol: pierwszy nie-wild lub najlepszy symbol z paytable
+    # pierwszy symbol nie-Wild lub najlepszy, jeśli same Wildy
     target_symbol = next((s for s in board if s.name not in wilds), None)
     target_name = target_symbol.name if target_symbol else _best_symbol_for_all_wilds(cfg)
 
-    # liczymy ile symboli od lewej pasuje do target_name
+    def matches(sym: Symbol, name: str) -> bool:
+        return sym.name == name or sym.name in wilds or name in wilds
+
+    # liczymy ile kolejnych symboli pasuje do target_name
     count = 0
-    for s in board:
-        if s.name == target_name or s.name in wilds:
+    for sym in board:
+        if matches(sym, target_name):
             count += 1
         else:
-            break
+            break  # linia kończy się przy pierwszym niepasującym
 
-    # dopasowanie do paytable
+    # sprawdzamy paytable wg liczby symboli w linii
     mult = cfg.paytable.three_kind.get(target_name, 0) if count >= 3 else 0
-
-    if mult > 0:
-        return {"line": line_index, "symbol": target_name, "count": count, "mult": mult}
+    # jeśli masz paytable dla 4 i 5, można rozbudować tutaj dynamicznie
+    if mult > 0 and count >= 3:
+        return {"line": 0, "symbol": target_name, "count": count, "mult": mult}
 
     return {}

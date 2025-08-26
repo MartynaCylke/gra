@@ -1,4 +1,4 @@
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import List, Dict, Optional, Tuple, Any
 from pathlib import Path
 import json
@@ -35,7 +35,6 @@ def normalize_conditions(conditions: Dict[str, Any] | None) -> Dict[str, Any]:
     return out
 
 # --- Bazowe struktury ---
-
 @dataclass
 class Paytable:
     three_kind: Dict[str, int] = None
@@ -101,8 +100,11 @@ class GameConfig:
     paytable_4oak: Optional[Dict[str, int]] = None
     paytable_5oak: Optional[Dict[str, int]] = None
 
-# --- Parsowanie BetModes i Distribution ---
+    # --- NOWE POLA ---
+    multiplier: Optional[int] = None  # dla testów i eventów multiplier
+    bonus: Optional[str] = None       # np. "freespin_bonus"
 
+# --- Parsowanie BetModes i Distribution ---
 def _parse_betmodes(raw: dict, default_cost: float) -> List[BetMode]:
     out: List[BetMode] = []
     modes = raw.get("bet_modes", [])
@@ -137,7 +139,6 @@ def _parse_betmodes(raw: dict, default_cost: float) -> List[BetMode]:
     return out
 
 # --- Wczytywanie reels dla gry ---
-
 def _load_reels_for_game(game_id: str, raw: dict) -> Dict[str, List[List[str]]]:
     reels_sets: Dict[str, List[List[str]]] = {}
     reels_files = raw.get("reels_files") or raw.get("reels")
@@ -152,7 +153,6 @@ def _load_reels_for_game(game_id: str, raw: dict) -> Dict[str, List[List[str]]]:
     return reels_sets
 
 # --- Wczytywanie całego configu gry ---
-
 def load_config(game_id: str) -> GameConfig:
     cfg_path = Path("games") / game_id / "config.json"
     data = json.loads(cfg_path.read_text(encoding="utf-8"))
@@ -224,26 +224,30 @@ def load_config(game_id: str) -> GameConfig:
         betmodes=betmodes,
         paytable_4oak=pt4,
         paytable_5oak=pt5,
+        multiplier=data.get("multiplier"),   # nowy parametr
+        bonus=data.get("bonus"),             # nowy parametr
     )
 
 # --- NOWA FUNKCJA: build_test_config ---
-def build_test_config(reels: Optional[List[List[str]]] = None, scatter: Optional[str] = None) -> GameConfig:
+def build_test_config(reels: Optional[List[List[str]]] = None, scatter: Optional[str] = None,
+                      multiplier: Optional[int] = None, bonus: Optional[str] = None) -> GameConfig:
     """
-    Tworzy minimalną konfigurację gry do testów.
+    Tworzy minimalną konfigurację gry do testów eventów.
     """
-    # minimalna paytable z 3 symbolami, żeby scatter działał w testach
     paytable = Paytable(three_kind={"S": 1, "A": 1, "B": 1})
 
     cfg = GameConfig(
         id="test",
         mode="lines",
-        colors=["A", "B", "C", "S"],
-        reels=reels or [["S", "A", "B", "C"]]*5,
+        colors=["A", "B", "C", "S", "W"],
+        reels=reels or [["S", "A", "B", "C", "W"]]*5,
         betmodes=[BetMode(name="test", cost=1.0, distributions=[])],
         paytable=paytable,
         weights=None,
         rows=1,
         cols=5,
         special_symbols={"wild": ["W"], "scatter": [scatter]} if scatter else {"wild": ["W"]},
+        multiplier=multiplier,
+        bonus=bonus,
     )
     return cfg
