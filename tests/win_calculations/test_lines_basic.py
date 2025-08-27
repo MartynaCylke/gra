@@ -5,15 +5,20 @@ from src.symbol.symbol import Symbol
 
 def _cfg():
     """
-    Zwraca przykładową konfigurację gry z paytable i symbolem Wild.
+    Konfiguracja testowa z pełnym paytable (3oak, 4oak, 5oak).
+    Dzięki temu testy 5-bębnowe nie walą KeyError.
     """
     return GameConfig(
         id="t",
         mode="lines",
         bet=1,
         reels=[[], [], []],
-        paytable=Paytable(three_kind={"A": 5, "K": 4, "Q": 3, "J": 2}),
-        special_symbols={"wild": ["W"]},  # dodajemy Wild
+        paytable=Paytable(
+            three_kind={"A": 5, "K": 4, "Q": 3, "J": 2},
+            four_kind={"A": 10, "K": 8, "Q": 6, "J": 4},
+            five_kind={"A": 20, "K": 16, "Q": 12, "J": 8},
+        ),
+        special_symbols={"wild": ["W"]},  # symbol Wild
     )
 
 
@@ -75,7 +80,7 @@ def test_5oak_A_wins():
     cfg = _cfg()
     board = [Symbol(cfg, s) for s in ["A", "A", "A", "A", "A"]]
     win = evaluate_single_line(board, cfg)
-    assert win["mult"] == 5
+    assert win["mult"] == 20
     assert win["symbol"] == "A"
     assert win["count"] == 5
 
@@ -84,7 +89,7 @@ def test_5oak_with_wilds():
     cfg = _cfg()
     board = [Symbol(cfg, s) for s in ["W", "A", "W", "A", "A"]]
     win = evaluate_single_line(board, cfg)
-    assert win["mult"] == 5
+    assert win["mult"] == 20
     assert win["symbol"] == "A"
     assert win["count"] == 5
 

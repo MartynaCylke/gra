@@ -11,33 +11,34 @@ class Symbol:
         self._attributes: Dict[str, Any] = {}
 
         # --- sprawdzanie special_symbols z configu ---
-        is_special = False
         if config and getattr(config, "special_symbols", None):
-            for special_property in config.special_symbols.keys():
-                if name in config.special_symbols[special_property]:
+            for special_property, symbols in config.special_symbols.items():
+                if name in symbols:
                     setattr(self, special_property, True)
-                    is_special = True
-
-        if is_special:
-            self.special = True
+                    self.special = True
 
         # --- przypisanie płatności ---
         self.assign_paying_bool(config)
 
-    # --- przypisanie flagi is_paying oraz paytable ---
     def assign_paying_bool(self, config: object) -> None:
+        """
+        Ustawia flagę is_paying i przypisuje odpowiednią paytable.
+        """
         if not config or not getattr(config, "paytable", None):
             self.is_paying = False
             self.paytable = None
             return
 
         pt = config.paytable
-        if pt and getattr(pt, "three_kind", None):
-            if self.name in pt.three_kind:
+        # najpierw sprawdzamy 3, 4, 5 kind
+        for table in [getattr(pt, "three_kind", None),
+                      getattr(pt, "four_kind", None),
+                      getattr(pt, "five_kind", None)]:
+            if table and self.name in table:
                 self.is_paying = True
-                self.paytable = pt.three_kind
+                self.paytable = table
                 return
-        # jeśli symbol nie płaci
+
         self.is_paying = False
         self.paytable = None
 
@@ -55,3 +56,4 @@ class Symbol:
 
     def get_attribute(self, key: str, default: Any = None) -> Any:
         return self._attributes.get(key, default)
+

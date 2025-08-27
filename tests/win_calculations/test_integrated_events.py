@@ -1,7 +1,6 @@
 import pytest
 from state.game_state import GameState
 from calculations.lines import evaluate_single_line
-
 from utils.rng import DummyRng
 from config.build_config import build_test_config
 from symbol.symbol import Symbol

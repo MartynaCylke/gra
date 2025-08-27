@@ -1,52 +1,66 @@
 from typing import List, Dict, Any
 from src.config.build_config import GameConfig
 from src.symbol.symbol import Symbol
-
+from collections import Counter
 
 def _wild_set(cfg: GameConfig) -> set:
-    """Zwraca zbiór symboli Wild z configu (domyślnie {'W'})"""
     if cfg.special_symbols and isinstance(cfg.special_symbols.get("wild"), list):
         return set(cfg.special_symbols["wild"])
     return {"W"}
 
-
 def _best_symbol_for_all_wilds(cfg: GameConfig) -> str:
-    """Jeśli wszystkie symbole to Wildy, wybierz symbol o najwyższej wypłacie z paytable"""
-    if cfg.paytable and cfg.paytable.three_kind:
-        return max(cfg.paytable.three_kind.items(), key=lambda kv: kv[1])[0]
-    return "A"
-
+    best_symbol, best_value = None, 0
+    pt = cfg.paytable
+    if not pt:
+        return "A"
+    for symbol, value in (pt.five_kind or {}).items():
+        if value > best_value:
+            best_symbol, best_value = symbol, value
+    if best_symbol:
+        return best_symbol
+    # fallback do 4- i 3-kind
+    for symbol, value in (pt.four_kind or {}).items():
+        if value > best_value:
+            best_symbol, best_value = symbol, value
+    for symbol, value in (pt.three_kind or {}).items():
+        if value > best_value:
+            best_symbol, best_value = symbol, value
+    return best_symbol or "A"
 
 def evaluate_single_line(board: List[Symbol], cfg: GameConfig) -> Dict[str, Any]:
-    """
-    Evaluator liniowy: obsługuje dowolną długość boardu (3,4,5),
-    z uwzględnieniem Wild jako substytutów.
-    Zwraca {} gdy brak wygranej.
-    """
-    if not isinstance(board, list) or len(board) < 3 or not cfg.paytable or not cfg.paytable.three_kind:
+    if not board or not cfg.paytable:
         return {}
 
     wilds = _wild_set(cfg)
-    # pierwszy symbol nie-Wild lub najlepszy, jeśli same Wildy
-    target_symbol = next((s for s in board if s.name not in wilds), None)
-    target_name = target_symbol.name if target_symbol else _best_symbol_for_all_wilds(cfg)
+    names = [s.name for s in board]
 
-    def matches(sym: Symbol, name: str) -> bool:
-        return sym.name == name or sym.name in wilds or name in wilds
+    non_wilds = [n for n in names if n not in wilds]
+    if not non_wilds:
+        best = _best_symbol_for_all_wilds(cfg)
+        count = len(names)
+    else:
+        counter = Counter(non_wilds)
+        best, base_count = counter.most_common(1)[0]
+        wild_count = sum(1 for n in names if n in wilds)
+        count = base_count + wild_count
 
-    # liczymy ile kolejnych symboli pasuje do target_name
-    count = 0
-    for sym in board:
-        if matches(sym, target_name):
-            count += 1
-        else:
-            break  # linia kończy się przy pierwszym niepasującym
+    # Wybór mnożnika wg liczby symboli
+    mult = 0
+    pt = cfg.paytable
+    if count >= 5 and pt.five_kind:
+        mult = pt.five_kind.get(best, 0)
+    elif count == 4 and pt.four_kind:
+        mult = pt.four_kind.get(best, 0)
+    elif count == 3 and pt.three_kind:
+        mult = pt.three_kind.get(best, 0)
 
-    # sprawdzamy paytable wg liczby symboli w linii
-    mult = cfg.paytable.three_kind.get(target_name) if count >= 3 else 0
-    # jeśli masz paytable dla 4 i 5, można rozbudować tutaj dynamicznie
-
-    if mult > 0 and count >= 3:
-        return {"line": 0, "symbol": target_name, "count": count, "mult": mult}
+    if mult > 0:
+        return {
+            "line": 0,
+            "symbol": best,
+            "count": count,
+            "mult": mult,
+            "total": mult  # <-- dodane pole total dla testów
+        }
 
     return {}

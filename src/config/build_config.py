@@ -3,8 +3,6 @@ from typing import List, Dict, Optional, Tuple, Any
 from pathlib import Path
 import json
 
-from .helpers import convert_range_table, read_reels_csv, validate_symbols_on_reels
-
 # --- Normalizacja warunków Distribution ---
 def normalize_conditions(conditions: Dict[str, Any] | None) -> Dict[str, Any]:
     out = {
@@ -37,8 +35,10 @@ def normalize_conditions(conditions: Dict[str, Any] | None) -> Dict[str, Any]:
 # --- Bazowe struktury ---
 @dataclass
 class Paytable:
-    three_kind: Dict[str, int] = None
-    full: Dict[Tuple[int, str], float] = None
+    three_kind: Dict[str, int] = field(default_factory=dict)
+    four_kind: Optional[Dict[str, int]] = field(default_factory=dict)
+    five_kind: Optional[Dict[str, int]] = field(default_factory=dict)
+    full: Dict[Tuple[int, str], float] = field(default_factory=dict)
 
 @dataclass
 class BallsRules:
@@ -66,12 +66,10 @@ class BetMode:
     auto_close_disabled: bool = False
     is_feature: bool = False
     is_buybonus: bool = False
-    distributions: List[Distribution] = None
+    distributions: List[Distribution] = field(default_factory=list)
 
     def get_distribution_conditions(self) -> List[Dict[str, Any]]:
         out = []
-        if not self.distributions:
-            return out
         for dist in self.distributions:
             cond = normalize_conditions(dist.conditions)
             out.append(cond)
@@ -86,168 +84,115 @@ class GameConfig:
     freegame_type: str = "freegame"
     reels: Optional[List[List[str]]] = None
     paytable: Optional[Paytable] = None
-    special_symbols: Dict[str, List[str]] = None
-    freespin_triggers: Dict[str, Dict[int, int]] = None
-    reels_map: Dict[str, str] = None
-    reels_sets: Dict[str, List[List[str]]] = None
+    special_symbols: Dict[str, List[str]] = field(default_factory=dict)
+    freespin_triggers: Dict[str, Dict[int, int]] = field(default_factory=dict)
+    reels_map: Dict[str, str] = field(default_factory=dict)
+    reels_sets: Dict[str, List[List[str]]] = field(default_factory=dict)
     colors: Optional[List[str]] = None
     weights: Optional[List[float]] = None
     balls_rules: Optional[BallsRules] = None
     rows: Optional[int] = None
     cols: Optional[int] = None
     grid_balls_rules: Optional[GridBallsRules] = None
-    betmodes: List[BetMode] = None
+    betmodes: List[BetMode] = field(default_factory=list)
     paytable_4oak: Optional[Dict[str, int]] = None
     paytable_5oak: Optional[Dict[str, int]] = None
+    multiplier: Optional[int] = None
+    bonus: Optional[str] = None
 
-    # --- NOWE POLA ---
-    multiplier: Optional[int] = None  # dla testów i eventów multiplier
-    bonus: Optional[str] = None       # np. "freespin_bonus"
-
-# --- Parsowanie BetModes i Distribution ---
-def _parse_betmodes(raw: dict, default_cost: float) -> List[BetMode]:
-    out: List[BetMode] = []
-    modes = raw.get("bet_modes", [])
-    if not modes:
-        out.append(BetMode(name="base", cost=float(default_cost),
-                           distributions=[Distribution("basegame", 1.0)]))
-        return out
-
-    def _dist(d: dict) -> Distribution:
-        crit = str(d.get("criteria", "basegame"))
-        q = float(d.get("quota", 0.0))
-        wc = d.get("win_criteria")
-        if wc is None:
-            wc = d.get("winCap", d.get("wincap"))
-        cond = normalize_conditions(d.get("conditions"))
-        return Distribution(criteria=crit, quota=q, win_criteria=wc, conditions=cond)
-
-    for bm in modes:
-        distributions = [_dist(d) for d in bm.get("distributions", [])]
-        out.append(
-            BetMode(
-                name=bm.get("name", "base"),
-                cost=float(bm.get("cost", default_cost)),
-                rtp=float(bm.get("rtp", 0.0)),
-                max_win=float(bm.get("max_win", 0.0)),
-                auto_close_disabled=bool(bm.get("auto_close_disabled", False)),
-                is_feature=bool(bm.get("is_feature", False)),
-                is_buybonus=bool(bm.get("is_buybonus", False)),
-                distributions=distributions or [Distribution("basegame", 1.0)],
-            )
-        )
-    return out
-
-# --- Wczytywanie reels dla gry ---
-def _load_reels_for_game(game_id: str, raw: dict) -> Dict[str, List[List[str]]]:
-    reels_sets: Dict[str, List[List[str]]] = {}
-    reels_files = raw.get("reels_files") or raw.get("reels")
-    if not reels_files or not isinstance(reels_files, dict):
-        return reels_sets
-    base = Path("games") / game_id / "reels"
-    for key, fname in reels_files.items():
-        p = base / fname
-        if not p.exists():
-            raise FileNotFoundError(f"Reels CSV not found: {p}")
-        reels_sets[key] = read_reels_csv(p)
-    return reels_sets
-
-# --- Wczytywanie całego configu gry ---
-def load_config(game_id: str) -> GameConfig:
-    cfg_path = Path("games") / game_id / "config.json"
-    data = json.loads(cfg_path.read_text(encoding="utf-8"))
-    mode = data.get("mode", "balls")
-    bet = data.get("bet", 1)
-    betmodes = _parse_betmodes(data, default_cost=bet)
-
-    if mode == "grid_balls":
-        return GameConfig(
-            id=game_id,
-            mode="grid_balls",
-            bet=bet,
-            colors=data["colors"],
-            weights=data.get("weights"),
-            rows=int(data["rows"]),
-            cols=int(data["cols"]),
-            grid_balls_rules=GridBallsRules(
-                bottom_row_all_same=data.get("rules", {}).get("bottom_row_all_same", 0)
-            ),
-            betmodes=betmodes,
-        )
-
-    if mode == "balls":
-        return GameConfig(
-            id=game_id,
-            mode="balls",
-            bet=bet,
-            colors=data["colors"],
-            weights=data.get("weights"),
-            balls_rules=BallsRules(
-                three_same=data.get("rules", {}).get("three_same", 0),
-                two_same=data.get("rules", {}).get("two_same", 0),
-                all_different=data.get("rules", {}).get("all_different", 0),
-            ),
-            betmodes=betmodes,
-        )
-
-    # mode == "lines"
-    pt_three = None
-    pt_full = None
-    if "paytable" in data and "3oak" in data["paytable"]:
-        pt_three = data["paytable"]["3oak"]
-    paytable = Paytable(three_kind=pt_three, full=pt_full)
-    special_symbols = data.get("special_symbols", {}) or {}
-    freespin_triggers = data.get("freespin_triggers", {}) or {}
-    reels_sets = _load_reels_for_game(game_id, data)
-    if reels_sets:
-        pay_syms = set()
-        if paytable.three_kind:
-            pay_syms.update(paytable.three_kind.keys())
-        if paytable.full:
-            pay_syms.update(sym for (_, sym) in paytable.full.keys())
-        validate_symbols_on_reels(reels_sets, pay_syms, special_symbols)
-    active_lines_reels: Optional[List[List[str]]] = None
-    if reels_sets:
-        active_lines_reels = next(iter(reels_sets.values()))
-    pt4 = data.get("paytable", {}).get("4oak")
-    pt5 = data.get("paytable", {}).get("5oak")
-    return GameConfig(
-        id=game_id,
-        mode="lines",
-        bet=bet,
-        reels=active_lines_reels,
-        paytable=paytable,
-        special_symbols=special_symbols,
-        freespin_triggers=freespin_triggers,
-        reels_map=data.get("reels_files") or data.get("reels"),
-        reels_sets=reels_sets,
-        betmodes=betmodes,
-        paytable_4oak=pt4,
-        paytable_5oak=pt5,
-        multiplier=data.get("multiplier"),   # nowy parametr
-        bonus=data.get("bonus"),             # nowy parametr
+# --- build_test_config ---
+def build_test_config(
+    reels: Optional[List[List[str]]] = None,
+    scatter: Optional[str] = None,
+    multiplier: Optional[int] = None,
+    bonus: Optional[str] = None,
+) -> GameConfig:
+    paytable = Paytable(
+        three_kind={"A": 10, "B": 5, "C": 2},
+        four_kind={"A": 20, "B": 10, "C": 4},
+        five_kind={"A": 50, "B": 25, "C": 10},
     )
-
-# --- NOWA FUNKCJA: build_test_config ---
-def build_test_config(reels: Optional[List[List[str]]] = None, scatter: Optional[str] = None,
-                      multiplier: Optional[int] = None, bonus: Optional[str] = None) -> GameConfig:
-    """
-    Tworzy minimalną konfigurację gry do testów eventów.
-    """
-    paytable = Paytable(three_kind={"S": 1, "A": 1, "B": 1})
-
     cfg = GameConfig(
         id="test",
         mode="lines",
         colors=["A", "B", "C", "S", "W"],
-        reels=reels or [["S", "A", "B", "C", "W"]]*5,
-        betmodes=[BetMode(name="test", cost=1.0, distributions=[])],
+        reels=reels or [["A", "B", "C", "W", "S"]] * 5,
+        betmodes=[BetMode(name="test", cost=1.0)],
         paytable=paytable,
-        weights=None,
         rows=1,
         cols=5,
         special_symbols={"wild": ["W"], "scatter": [scatter]} if scatter else {"wild": ["W"]},
         multiplier=multiplier,
         bonus=bonus,
+    )
+    return cfg
+
+# --- load_config ---
+def load_config(game_id: str, base_path: Optional[Path] = None) -> GameConfig:
+    base_path = base_path or Path(__file__).parent
+    config_path = base_path / f"{game_id}.json"
+    if not config_path.exists():
+        raise FileNotFoundError(f"Nie znaleziono pliku konfiguracyjnego: {config_path}")
+
+    with open(config_path, "r", encoding="utf-8") as f:
+        data = json.load(f)
+
+    paytable = None
+    if "paytable" in data:
+        pt = data["paytable"]
+        paytable = Paytable(
+            three_kind=pt.get("three_kind", {}),
+            four_kind=pt.get("four_kind", {}),
+            five_kind=pt.get("five_kind", {}),
+            full=pt.get("full", {}),
+        )
+
+    betmodes = []
+    for bm in data.get("betmodes", []):
+        distributions = [
+            Distribution(
+                criteria=d.get("criteria"),
+                quota=d.get("quota"),
+                win_criteria=d.get("win_criteria"),
+                conditions=d.get("conditions"),
+            )
+            for d in bm.get("distributions", [])
+        ]
+        betmodes.append(
+            BetMode(
+                name=bm["name"],
+                cost=bm["cost"],
+                rtp=bm.get("rtp", 0.0),
+                max_win=bm.get("max_win", 0.0),
+                auto_close_disabled=bm.get("auto_close_disabled", False),
+                is_feature=bm.get("is_feature", False),
+                is_buybonus=bm.get("is_buybonus", False),
+                distributions=distributions,
+            )
+        )
+
+    cfg = GameConfig(
+        id=data["id"],
+        mode=data.get("mode", "balls"),
+        bet=data.get("bet", 1),
+        basegame_type=data.get("basegame_type", "basegame"),
+        freegame_type=data.get("freegame_type", "freegame"),
+        reels=data.get("reels"),
+        paytable=paytable,
+        special_symbols=data.get("special_symbols", {}),
+        freespin_triggers=data.get("freespin_triggers", {}),
+        reels_map=data.get("reels_map", {}),
+        reels_sets=data.get("reels_sets", {}),
+        colors=data.get("colors"),
+        weights=data.get("weights"),
+        balls_rules=BallsRules(**data["balls_rules"]) if data.get("balls_rules") else None,
+        rows=data.get("rows"),
+        cols=data.get("cols"),
+        grid_balls_rules=GridBallsRules(**data["grid_balls_rules"]) if data.get("grid_balls_rules") else None,
+        betmodes=betmodes,
+        paytable_4oak=data.get("paytable_4oak"),
+        paytable_5oak=data.get("paytable_5oak"),
+        multiplier=data.get("multiplier"),
+        bonus=data.get("bonus"),
     )
     return cfg
