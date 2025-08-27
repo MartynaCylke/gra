@@ -10,6 +10,7 @@ from src.events.events import (
     create_multiplier_event
 )
 from src.symbol.symbol import Symbol
+import json
 
 BoardType = Union[List[str], List[List[str]]]
 
@@ -23,9 +24,9 @@ class GameState:
     totals: Dict[str, Any] = field(default_factory=lambda: {"spins": 0, "wins": 0, "payoutMultSum": 0})
     last_board: Optional[BoardType] = None
     free_spins: int = 0
+    temp_wins: List[Dict[str, Any]] = field(default_factory=list)  # dla custom defined events
 
     def make_board(self, rng: Rng) -> BoardType:
-        """Generuje board w zależności od trybu gry."""
         if self.cfg.mode == "grid_balls":
             assert self.cfg.colors and self.cfg.rows and self.cfg.cols
             return [
@@ -54,6 +55,27 @@ class GameState:
         if self.trace and isinstance(self.book.get("events"), list):
             ev["index"] = len(self.book["events"])
             self.book["events"].append(ev)
+
+    def record(self, description: dict) -> None:
+        """Zapisuje niestandardowe zdarzenie w temp_wins."""
+        if not isinstance(description, dict):
+            raise ValueError("description musi być słownikiem")
+        entry = dict(description)
+        entry["book_id"] = self.book.get("id")
+        self.temp_wins.append(entry)
+
+    def imprint_wins(self, filepath: str) -> None:
+        """Finalizuje temp_wins i zapisuje je do force_record_<betmode>.json"""
+        force_records = {}
+        for entry in self.temp_wins:
+            key = tuple(sorted(entry.items()))
+            if key not in force_records:
+                force_records[key] = {"search": dict(entry), "timesTriggered": 0, "bookIds": []}
+            force_records[key]["timesTriggered"] += 1
+            if entry["book_id"] not in force_records[key]["bookIds"]:
+                force_records[key]["bookIds"].append(entry["book_id"])
+        with open(filepath, "w") as f:
+            json.dump(list(force_records.values()), f, indent=4)
 
     def finalize_book(self, payout_mult: int) -> Dict[str, Any]:
         self.book["payoutMultiplier"] = int(payout_mult)
@@ -98,6 +120,12 @@ class GameState:
             scatter_wins = scatter_count
             self.add_event({"type": "scatter_event", "symbol": scatter_symbol, "count": scatter_count, "wins": scatter_wins})
             create_bonus_event(self, bonus_type="freespin_bonus", value=10)
+            # zapis niestandardowego eventu
+            self.record({
+                "kind": scatter_count,
+                "symbol": scatter_symbol,
+                "gametype": getattr(self, "gametype", self.cfg.mode)  # fallback
+            })
 
         self.book["scatterWins"] = scatter_wins
 
