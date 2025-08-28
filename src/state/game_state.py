@@ -10,6 +10,7 @@ from src.events.events import (
     create_multiplier_event
 )
 from src.symbol.symbol import Symbol
+from src.evaluator.evaluator import evaluate_board  # ✅ NOWY import
 import json
 
 BoardType = Union[List[str], List[List[str]]]
@@ -86,7 +87,8 @@ class GameState:
         self.library.append(dict(self.book))
         return self.book
 
-    def run_spin(self, rng: Rng, evaluator) -> Dict[str, Any]:
+    # ✅ zmiana: nie przekazujemy już evaluator
+    def run_spin(self, rng: Rng) -> Dict[str, Any]:
         self.reset_book(criteria=self.cfg.mode)
         raw_board = self.make_board(rng)
 
@@ -102,8 +104,8 @@ class GameState:
         # Spin start
         create_spin_event(self)
 
-        # Wygrana liniowa
-        win = evaluator(board, self.cfg)
+        # ✅ teraz używamy evaluate_board
+        win = evaluate_board(board, self.cfg)
         payout_mult = int(win.get("mult", 0)) if win else 0
         if win:
             create_win_event(self, symbol=win.get("symbol"), count=win.get("count"), mult=win.get("mult"))

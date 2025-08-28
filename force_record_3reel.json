@@ -1,1 +1,14 @@
-[]
+[
+    {
+        "search": {
+            "kind": 3,
+            "symbol": "S",
+            "gametype": "lines",
+            "book_id": 10
+        },
+        "timesTriggered": 1,
+        "bookIds": [
+            10
+        ]
+    }
+]
