@@ -1,9 +1,45 @@
 [
     {
         "search": {
-            "kind": 3,
-            "symbol": "S",
             "gametype": "lines",
+            "payoutMultiplier": 10,
+            "scatterWins": 0,
+            "book_id": 7
+        },
+        "timesTriggered": 1,
+        "bookIds": [
+            7
+        ]
+    },
+    {
+        "search": {
+            "gametype": "lines",
+            "payoutMultiplier": 5,
+            "scatterWins": 0,
+            "book_id": 8
+        },
+        "timesTriggered": 1,
+        "bookIds": [
+            8
+        ]
+    },
+    {
+        "search": {
+            "gametype": "lines",
+            "payoutMultiplier": 8,
+            "scatterWins": 0,
+            "book_id": 9
+        },
+        "timesTriggered": 1,
+        "bookIds": [
+            9
+        ]
+    },
+    {
+        "search": {
+            "gametype": "lines",
+            "payoutMultiplier": 0,
+            "scatterWins": 3,
             "book_id": 10
         },
         "timesTriggered": 1,
