@@ -15,7 +15,6 @@ import json
 
 BoardType = Union[List[str], List[List[str]]]
 
-
 @dataclass
 class GameState:
     cfg: GameConfig
@@ -84,8 +83,9 @@ class GameState:
         self.library.append(dict(self.book))
         return self.book
 
-    def run_spin(self, rng: Rng) -> Dict[str, Any]:
-        from src.evaluator.evaluator import evaluate_board
+    def run_spin(self, rng: Rng, evaluator=None) -> Dict[str, Any]:
+        from src.evaluator.evaluator import evaluate_board as default_evaluator
+        evaluate = evaluator or default_evaluator
 
         # 1️⃣ Obsługa force.json
         if self.force_loader.enabled:
@@ -104,7 +104,6 @@ class GameState:
                     "scatterWins": scatter_wins,
                 })
 
-                # 🔹 Zapisujemy wymuszony spin do temp_wins
                 self.record({
                     "gametype": self.cfg.mode,
                     "payoutMultiplier": payout_mult,
@@ -128,7 +127,7 @@ class GameState:
 
         create_spin_event(self)
 
-        win = evaluate_board(board, self.cfg)
+        win = evaluate(board, self.cfg)
         payout_mult = int(win.get("mult", 0)) if win else 0
         if win:
             create_win_event(self, symbol=win.get("symbol"), count=win.get("count"), mult=win.get("mult"))
