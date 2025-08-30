@@ -3,7 +3,7 @@ from state.game_state import GameState
 from calculations.lines import evaluate_single_line
 from symbol.symbol import Symbol
 
-# Prosty DummyRng do deterministycznych „losowań”
+# DummyRng deterministyczny
 class DummyRng:
     def __init__(self, choices):
         self.choices = list(choices)
@@ -15,7 +15,7 @@ class DummyRng:
     def choice_weighted(self, seq, weights=None):
         return self.choice(seq)
 
-# Lokalna, minimalna konfiguracja testowa z kompletną Paytable
+
 def _cfg():
     class PT:
         def __init__(self):
@@ -32,19 +32,24 @@ def _cfg():
         multiplier = None
     return CFG()
 
+
 def test_spin_start_event():
     cfg = _cfg()
     gs = GameState(cfg, trace=True)
+    gs.force_loader.enabled = False
+
     board = [Symbol(cfg, s) for s in ["A", "A", "A", "B", "B"]]
     gs.last_board = board
     rng = DummyRng([s.name for s in board])
     result = gs.run_spin(rng, evaluate_single_line)
     assert any(ev.get("type") == "spin_start" for ev in result.get("events", []))
 
+
 def test_freespin_update_event():
     cfg = _cfg()
     gs = GameState(cfg, trace=True)
-    # 3 scattery -> 10 freespinów, event freespin_update
+    gs.force_loader.enabled = False
+
     board = [Symbol(cfg, s) for s in ["S", "S", "S", "A", "B"]]
     gs.last_board = board
     rng = DummyRng([s.name for s in board])

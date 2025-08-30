@@ -15,6 +15,7 @@ import json
 
 BoardType = Union[List[str], List[List[str]]]
 
+
 @dataclass
 class GameState:
     cfg: GameConfig
@@ -27,6 +28,7 @@ class GameState:
     free_spins: int = 0
     temp_wins: List[Dict[str, Any]] = field(default_factory=list)
     force_loader: ForceLoader = field(default_factory=ForceLoader, init=False)
+    force_enabled: bool = True  # flaga do testów, żeby wyłączyć wymuszone spiny
 
     def make_board(self, rng: Rng) -> BoardType:
         if self.cfg.mode == "lines":
@@ -84,11 +86,10 @@ class GameState:
         return self.book
 
     def run_spin(self, rng: Rng, evaluator=None) -> Dict[str, Any]:
-        from src.evaluator.evaluator import evaluate_board as default_evaluator
-        evaluate = evaluator or default_evaluator
+        from src.evaluator.evaluator import evaluate_board
 
-        # 1️⃣ Obsługa force.json
-        if self.force_loader.enabled:
+        # --- Obsługa ForceLoader tylko jeśli włączony ---
+        if self.force_loader.enabled and self.force_enabled:
             event = self.force_loader.next_event()
             if event:
                 payout_mult = int(event.get("payoutMultiplier", 0))
@@ -104,6 +105,21 @@ class GameState:
                     "scatterWins": scatter_wins,
                 })
 
+                # spin_start event
+                self.add_event({
+                    "type": "spin_start",
+                    "board": [s.name for s in self.last_board] if self.last_board else [],
+                    "spins": self.totals["spins"]
+                })
+
+                # spin_result event
+                self.add_event({
+                    "type": "spin_result",
+                    "board": [s.name for s in self.last_board] if self.last_board else [],
+                    "win": {"mult": payout_mult},
+                    "scatterWins": scatter_wins,
+                })
+
                 self.record({
                     "gametype": self.cfg.mode,
                     "payoutMultiplier": payout_mult,
@@ -113,7 +129,7 @@ class GameState:
                 print(f"[FORCE] Spin wymuszony → payout={payout_mult}, scatters={scatter_wins}")
                 return self.finalize_book(payout_mult)
 
-        # 2️⃣ Standardowa logika RNG
+        # --- Normalny spin ---
         self.reset_book(criteria=self.cfg.mode)
         raw_board = self.make_board(rng)
 
@@ -123,15 +139,29 @@ class GameState:
         else:
             board = [Symbol(self.cfg, s) for s in raw_board]
             flat_board = board
+
         self.last_board = board
 
-        create_spin_event(self)
+        # Event spin_start
+        self.add_event({
+            "type": "spin_start",
+            "board": [s.name for s in flat_board],
+            "spins": self.totals["spins"]
+        })
 
-        win = evaluate(board, self.cfg)
+        if evaluator is None:
+            evaluator = evaluate_board
+        win = evaluator(board, self.cfg) if evaluator else None
         payout_mult = int(win.get("mult", 0)) if win else 0
-        if win:
-            create_win_event(self, symbol=win.get("symbol"), count=win.get("count"), mult=win.get("mult"))
+        if win and win.get("mult", 0) > 0:
+            self.add_event({
+                "type": "line_win",
+                "symbol": win.get("symbol"),
+                "count": win.get("count"),
+                "mult": win.get("mult")
+            })
 
+        # Scatter i freespiny
         scatter_symbol = self.cfg.special_symbols.get("scatter", [None])[0] if self.cfg.special_symbols else None
         scatter_count = sum(1 for s in flat_board if isinstance(s, Symbol) and s.name == scatter_symbol) if scatter_symbol else 0
         scatter_wins = 0
@@ -139,21 +169,12 @@ class GameState:
             self.free_spins += 10
             scatter_wins = scatter_count
             self.add_event({"type": "scatter_event", "symbol": scatter_symbol, "count": scatter_count, "wins": scatter_wins})
-            create_bonus_event(self, bonus_type="freespin_bonus", value=10)
-            self.record({
-                "kind": scatter_count,
-                "symbol": scatter_symbol,
-                "gametype": self.cfg.mode
-            })
+            self.add_event({"type": "freespin_update", "freeSpinsRemaining": self.free_spins,
+                            "totalWins": sum([ev.get("mult", 0) for ev in self.book.get("events", [])])})
 
         self.book["scatterWins"] = scatter_wins
 
-        if self.free_spins > 0:
-            update_freespin_event(self)
-
-        if getattr(self.cfg, "multiplier", None):
-            create_multiplier_event(self, self.cfg.multiplier)
-
+        # Końcowy spin_result
         self.add_event({
             "type": "spin_result",
             "board": [s.name for s in flat_board],

@@ -1,8 +1,6 @@
 import pytest
 from state.game_state import GameState
 from calculations.lines import evaluate_single_line
-
-# Poprawione importy
 from utils.rng import DummyRng
 from config.build_config import build_test_config
 from symbol.symbol import Symbol
@@ -17,6 +15,8 @@ def test_freespin_event():
 
     # ustawiamy początkowe free spins
     gs = GameState(cfg, trace=True, free_spins=3)
+    # Wyłączamy wymuszone spiny, żeby eventy generowały się normalnie
+    gs.force_loader.enabled = False
     gs.reset_book(criteria=cfg.mode)
 
     # --- wymuszony board (ze scatterami, żeby odpalił event free spin) ---
@@ -28,7 +28,8 @@ def test_freespin_event():
         Symbol(cfg, "S"),
     ]
     gs.last_board = board
-    rng = DummyRng(["S", "A", "S", "B", "S"])
+
+    rng = DummyRng([s.name for s in board])  # deterministyczny RNG
 
     result = gs.run_spin(rng, evaluate_single_line)
 

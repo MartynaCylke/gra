@@ -18,6 +18,7 @@ def test_freespin_event():
     # ustawiamy początkowe free spins
     gs = GameState(cfg, trace=True, free_spins=3)
     gs.reset_book(criteria=cfg.mode)
+    gs.force_loader.enabled = False  # WYŁĄCZAMY wymuszony spin
 
     # --- wymuszony board (ze scatterami, żeby odpalił event free spin) ---
     board = [
