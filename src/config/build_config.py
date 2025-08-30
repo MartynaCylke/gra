@@ -112,12 +112,16 @@ def build_test_config(
         four_kind={"A": 20, "B": 10, "C": 4},
         five_kind={"A": 50, "B": 25, "C": 10},
     )
+
+    # ✅ Dodajemy minimalną Distribution, żeby lista nie była pusta
+    distributions = [Distribution(criteria="any", quota=1.0)]
+
     cfg = GameConfig(
         id="test",
         mode="lines",
         colors=["A", "B", "C", "S", "W"],
         reels=reels or [["A", "B", "C", "W", "S"]] * 5,
-        betmodes=[BetMode(name="test", cost=1.0)],
+        betmodes=[BetMode(name="test", cost=1.0, distributions=distributions)],
         paytable=paytable,
         rows=1,
         cols=5,

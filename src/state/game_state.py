@@ -1,6 +1,8 @@
 from dataclasses import dataclass, field
 from typing import List, Union, Dict, Any, Optional
-from src.config.game_configs import GameConfig, BetMode
+from src.config.build_config import GameConfig, BetMode
+from src.symbol.symbol import Symbol
+from src.board.board import Board
 from src.utils.rng import Rng
 from src.utils.force_loader import ForceLoader
 from src.events.events import (
@@ -10,11 +12,9 @@ from src.events.events import (
     create_bonus_event,
     create_multiplier_event
 )
-from src.symbol.symbol import Symbol
 import json
 
 BoardType = Union[List[str], List[List[str]]]
-
 
 @dataclass
 class GameState:
@@ -28,21 +28,47 @@ class GameState:
     free_spins: int = 0
     temp_wins: List[Dict[str, Any]] = field(default_factory=list)
     force_loader: ForceLoader = field(default_factory=ForceLoader, init=False)
-    force_enabled: bool = True  # flaga do testów, żeby wyłączyć wymuszone spiny
+    force_enabled: bool = True
 
-    def make_board(self, rng: Rng) -> BoardType:
-        if self.cfg.mode == "lines":
-            return [rng.choice(reel) for reel in self.cfg.reels]
-        elif self.cfg.mode == "balls":
-            return [rng.choice_weighted(self.cfg.colors, self.cfg.weights) for _ in range(3)]
-        elif self.cfg.mode == "grid_balls":
-            return [
-                [rng.choice_weighted(self.cfg.colors, self.cfg.weights) for _ in range(self.cfg.cols)]
-                for _ in range(self.cfg.rows)
-            ]
-        else:
-            raise ValueError(f"Nieznany tryb gry: {self.cfg.mode}")
+    # --- Board-related fields ---
+    board: Optional[Board] = None
+    board_data: list = field(default_factory=list)
+    special_symbols_on_board: dict = field(default_factory=dict)
+    reel_positions: list = field(default_factory=list)
+    reelstrip_id: str = ""
+    top_padding: list = field(default_factory=list)
+    bottom_padding: list = field(default_factory=list)
+    anticipation: list = field(default_factory=list)
+    betmode: Optional[BetMode] = None
 
+    def initialize_betmode(self):
+        if not self.betmode:
+            self.betmode = self.cfg.betmodes[0] if self.cfg.betmodes else None
+
+    # --- Board creation ---
+    def make_board_from_reelstrips(self):
+        self.initialize_betmode()
+        self.board = Board(cfg=self.cfg, betmode=self.betmode)
+        self.board.create_board_reelstrips()
+        self._update_board_fields()
+
+    def force_board(self, forced_positions: Optional[List[int]] = None):
+        if not self.board:
+            self.make_board_from_reelstrips()
+        self.board.force_board_from_reelstrips(forced_positions)
+        self._update_board_fields()
+
+    def _update_board_fields(self):
+        self.board_data = self.board.board
+        self.last_board = self.board_data
+        self.special_symbols_on_board = self.board.special_symbols_on_board
+        self.reel_positions = self.board.reel_positions
+        self.reelstrip_id = self.board.reelstrip_id
+        self.top_padding = self.board.top_symbols
+        self.bottom_padding = self.board.bottom_symbols
+        self.anticipation = self.board.anticipation
+
+    # --- Book / spin handling ---
     def reset_book(self, criteria: Optional[str] = None) -> None:
         self.book = {
             "id": self.sim + 1,
@@ -64,18 +90,6 @@ class GameState:
         entry["book_id"] = self.book.get("id")
         self.temp_wins.append(entry)
 
-    def imprint_wins(self, filepath: str) -> None:
-        force_records = {}
-        for entry in self.temp_wins:
-            key = tuple(sorted(entry.items()))
-            if key not in force_records:
-                force_records[key] = {"search": dict(entry), "timesTriggered": 0, "bookIds": []}
-            force_records[key]["timesTriggered"] += 1
-            if entry["book_id"] not in force_records[key]["bookIds"]:
-                force_records[key]["bookIds"].append(entry["book_id"])
-        with open(filepath, "w") as f:
-            json.dump(list(force_records.values()), f, indent=4)
-
     def finalize_book(self, payout_mult: int) -> Dict[str, Any]:
         self.book["payoutMultiplier"] = int(payout_mult)
         self.totals["spins"] += 1
@@ -88,80 +102,35 @@ class GameState:
     def run_spin(self, rng: Rng, evaluator=None) -> Dict[str, Any]:
         from src.evaluator.evaluator import evaluate_board
 
-        # --- Obsługa ForceLoader tylko jeśli włączony ---
+        # --- Obsługa ForceLoader ---
         if self.force_loader.enabled and self.force_enabled:
             event = self.force_loader.next_event()
             if event:
                 payout_mult = int(event.get("payoutMultiplier", 0))
                 scatter_wins = int(event.get("scatterWins", 0))
-
                 self.reset_book(criteria=f"{self.cfg.mode}_FORCED")
                 self.book["payoutMultiplier"] = payout_mult
                 self.book["scatterWins"] = scatter_wins
-
-                self.add_event({
-                    "type": "forced_spin",
-                    "payoutMultiplier": payout_mult,
-                    "scatterWins": scatter_wins,
-                })
-
-                # spin_start event
-                self.add_event({
-                    "type": "spin_start",
-                    "board": [s.name for s in self.last_board] if self.last_board else [],
-                    "spins": self.totals["spins"]
-                })
-
-                # spin_result event
-                self.add_event({
-                    "type": "spin_result",
-                    "board": [s.name for s in self.last_board] if self.last_board else [],
-                    "win": {"mult": payout_mult},
-                    "scatterWins": scatter_wins,
-                })
-
-                self.record({
-                    "gametype": self.cfg.mode,
-                    "payoutMultiplier": payout_mult,
-                    "scatterWins": scatter_wins
-                })
-
-                print(f"[FORCE] Spin wymuszony → payout={payout_mult}, scatters={scatter_wins}")
+                self.add_event({"type": "forced_spin", "payoutMultiplier": payout_mult, "scatterWins": scatter_wins})
                 return self.finalize_book(payout_mult)
 
-        # --- Normalny spin ---
-        self.reset_book(criteria=self.cfg.mode)
-        raw_board = self.make_board(rng)
+        # --- Normalny spin z Board ---
+        self.make_board_from_reelstrips()
+        flat_board = [s for row in self.board_data for s in row] if isinstance(self.board_data[0], list) else self.board_data
 
-        if isinstance(raw_board[0], list):
-            board = [[Symbol(self.cfg, s) for s in row] for row in raw_board]
-            flat_board = [s for row in board for s in row]
-        else:
-            board = [Symbol(self.cfg, s) for s in raw_board]
-            flat_board = board
-
-        self.last_board = board
-
-        # Event spin_start
-        self.add_event({
-            "type": "spin_start",
-            "board": [s.name for s in flat_board],
-            "spins": self.totals["spins"]
-        })
+        # --- Event spin_start ---
+        self.reset_book()
+        self.add_event({"type": "spin_start", "board": [s.name for s in flat_board], "spins": self.totals["spins"]})
 
         if evaluator is None:
             evaluator = evaluate_board
-        win = evaluator(board, self.cfg) if evaluator else None
+        win = evaluator(self.board_data, self.cfg) if evaluator else None
         payout_mult = int(win.get("mult", 0)) if win else 0
-        if win and win.get("mult", 0) > 0:
-            self.add_event({
-                "type": "line_win",
-                "symbol": win.get("symbol"),
-                "count": win.get("count"),
-                "mult": win.get("mult")
-            })
 
-        # Scatter i freespiny
+        if win and win.get("mult", 0) > 0:
+            self.add_event({"type": "line_win", "symbol": win.get("symbol"), "count": win.get("count"), "mult": win.get("mult")})
+
+        # Scatter handling
         scatter_symbol = self.cfg.special_symbols.get("scatter", [None])[0] if self.cfg.special_symbols else None
         scatter_count = sum(1 for s in flat_board if isinstance(s, Symbol) and s.name == scatter_symbol) if scatter_symbol else 0
         scatter_wins = 0
@@ -169,18 +138,11 @@ class GameState:
             self.free_spins += 10
             scatter_wins = scatter_count
             self.add_event({"type": "scatter_event", "symbol": scatter_symbol, "count": scatter_count, "wins": scatter_wins})
-            self.add_event({"type": "freespin_update", "freeSpinsRemaining": self.free_spins,
-                            "totalWins": sum([ev.get("mult", 0) for ev in self.book.get("events", [])])})
 
         self.book["scatterWins"] = scatter_wins
 
-        # Końcowy spin_result
-        self.add_event({
-            "type": "spin_result",
-            "board": [s.name for s in flat_board],
-            "win": win or {},
-            "scatterWins": scatter_wins,
-        })
+        # --- Event spin_result ---
+        self.add_event({"type": "spin_result", "board": [s.name for s in flat_board], "win": win or {}, "scatterWins": scatter_wins})
 
         return self.finalize_book(payout_mult)
 
@@ -191,9 +153,3 @@ class GameState:
             "totals": self.totals.copy(),
             "current_book": self.book.copy(),
         }
-
-    def get_distribution_conditions(self, betmode_name: str) -> List[Dict[str, Any]]:
-        bm: Optional[BetMode] = next((b for b in self.cfg.betmodes if b.name == betmode_name), None)
-        if not bm:
-            raise ValueError(f"BetMode o nazwie '{betmode_name}' nie istnieje w konfiguracji.")
-        return bm.get_distribution_conditions()
