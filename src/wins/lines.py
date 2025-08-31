@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 from src.config.build_config import GameConfig
-from src.symbol.symbol import Symbol
+from src.symbol import Symbol
+
 
 
 def _wild_set(cfg: GameConfig) -> set:

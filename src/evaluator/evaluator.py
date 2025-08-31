@@ -5,7 +5,8 @@ Docelowo tutaj będzie cała logika wygrywających linii / układów.
 
 from typing import Dict, Any, List, Union
 from src.config.game_configs import GameConfig
-from src.symbol.symbol import Symbol
+from src.symbol import Symbol
+
 
 BoardType = Union[List[str], List[List[str]]]
 

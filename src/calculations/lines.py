@@ -1,6 +1,6 @@
 from typing import List, Dict, Any
 from src.config.build_config import GameConfig
-from src.symbol.symbol import Symbol
+from src.symbol import Symbol  # <- poprawione
 from collections import Counter
 
 def _wild_set(cfg: GameConfig) -> set:
@@ -44,7 +44,6 @@ def evaluate_single_line(board: List[Symbol], cfg: GameConfig) -> Dict[str, Any]
         wild_count = sum(1 for n in names if n in wilds)
         count = base_count + wild_count
 
-    # Wybór mnożnika wg liczby symboli
     mult = 0
     pt = cfg.paytable
     if count >= 5 and pt.five_kind:
@@ -60,7 +59,7 @@ def evaluate_single_line(board: List[Symbol], cfg: GameConfig) -> Dict[str, Any]
             "symbol": best,
             "count": count,
             "mult": mult,
-            "total": mult  # <-- dodane pole total dla testów
+            "total": mult
         }
 
     return {}

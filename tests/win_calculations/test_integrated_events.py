@@ -3,28 +3,14 @@ from state.game_state import GameState
 from calculations.lines import evaluate_single_line
 from utils.rng import DummyRng
 from config.build_config import build_test_config
-from symbol.symbol import Symbol
-
-
-# ----------------- KONFIGURACJE -----------------
+from src.symbol import Symbol
+from events.events import create_bonus_event
 
 def cfg_lines_5reel():
-    """Prosta konfiguracja 5-bębnowej gry liniowej"""
-    return build_test_config(
-        reels=[["A", "B"], ["A", "B"], ["A", "B"], ["A", "B"], ["A", "B"]],
-        scatter="S"
-    )
-
+    return build_test_config(reels=[["A","B"]]*5, scatter="S")
 
 def cfg_lines_3reel():
-    """Prosta konfiguracja 3-bębnowej gry liniowej"""
-    return build_test_config(
-        reels=[["A", "B"], ["A", "B"], ["A", "B"]],
-        scatter="S"
-    )
-
-
-# ----------------- TESTY LINIOWE -----------------
+    return build_test_config(reels=[["A","B"]]*5, scatter="S")  # 5 list, żeby cols=5
 
 def test_line_win_5reel():
     cfg = cfg_lines_5reel()
@@ -32,15 +18,12 @@ def test_line_win_5reel():
     gs.force_loader.enabled = False
     gs.reset_book(criteria=cfg.mode)
 
-    board = [Symbol(cfg, s) for s in ["A", "A", "A", "B", "B"]]
+    board = [Symbol(cfg, s) for s in ["A","A","A","B","B"]]
     gs.last_board = board
-    rng = DummyRng(["A", "A", "A", "B", "B"])
-
+    rng = DummyRng([s.name for s in board])
     result = gs.run_spin(rng, evaluate_single_line)
-
     assert gs.free_spins == 0
-    assert any(ev["type"] == "line_win" for ev in result.get("events", [])), "Brak eventu line_win"
-
+    assert any(ev["type"]=="line_win" for ev in result.get("events", []))
 
 def test_no_line_win_5reel():
     cfg = cfg_lines_5reel()
@@ -48,17 +31,12 @@ def test_no_line_win_5reel():
     gs.force_loader.enabled = False
     gs.reset_book(criteria=cfg.mode)
 
-    board = [Symbol(cfg, s) for s in ["A", "B", "K", "Q", "B"]]
+    board = [Symbol(cfg, s) for s in ["A","B","K","Q","B"]]
     gs.last_board = board
-    rng = DummyRng(["A", "B", "K", "Q", "B"])
-
+    rng = DummyRng([s.name for s in board])
     result = gs.run_spin(rng, evaluate_single_line)
-
-    assert not any(ev["type"] == "line_win" for ev in result.get("events", []))
+    assert not any(ev["type"]=="line_win" for ev in result.get("events", []))
     assert gs.free_spins == 0
-
-
-# ----------------- TESTY SCATTER I FREESPIN -----------------
 
 def test_scatter_triggers_freespin_3reel():
     cfg = cfg_lines_3reel()
@@ -66,16 +44,13 @@ def test_scatter_triggers_freespin_3reel():
     gs.force_loader.enabled = False
     gs.reset_book(criteria=cfg.mode)
 
-    board = [Symbol(cfg, s) for s in ["S", "S", "S"]]
+    board = [Symbol(cfg, s) for s in ["S","S","S"]]
     gs.last_board = board
-    rng = DummyRng(["S", "S", "S"])
-
+    rng = DummyRng([s.name for s in board])
     result = gs.run_spin(rng, evaluate_single_line)
-
-    assert gs.free_spins >= 10, "Free spins powinny zostać dodane"
-    assert any(ev["type"] == "scatter_event" for ev in result.get("events", [])), "Brak eventu scatter_event"
-    assert any(ev["type"] == "freespin_update" for ev in result.get("events", [])), "Brak eventu freespin_update"
-
+    assert gs.free_spins >= 10
+    assert any(ev["type"]=="scatter_event" for ev in result.get("events", []))
+    assert any(ev["type"]=="freespin_update" for ev in result.get("events", []))
 
 def test_scatter_not_triggered():
     cfg = cfg_lines_3reel()
@@ -83,17 +58,12 @@ def test_scatter_not_triggered():
     gs.force_loader.enabled = False
     gs.reset_book(criteria=cfg.mode)
 
-    board = [Symbol(cfg, s) for s in ["S", "A", "B"]]
+    board = [Symbol(cfg, s) for s in ["S","A","B"]]
     gs.last_board = board
-    rng = DummyRng(["S", "A", "B"])
-
+    rng = DummyRng([s.name for s in board])
     result = gs.run_spin(rng, evaluate_single_line)
-
     assert gs.free_spins == 0
-    assert not any(ev["type"] == "scatter_event" for ev in result.get("events", []))
-
-
-# ----------------- TESTY BONUSÓW -----------------
+    assert not any(ev["type"]=="scatter_event" for ev in result.get("events", []))
 
 def test_bonus_event_structure():
     cfg = cfg_lines_3reel()
@@ -101,7 +71,5 @@ def test_bonus_event_structure():
     gs.force_loader.enabled = False
     gs.reset_book(criteria=cfg.mode)
 
-    from events.events import create_bonus_event
     create_bonus_event(gs, bonus_type="free_game", value=5)
-
-    assert any(ev["type"] == "bonus_triggered" for ev in gs.book.get("events", [])), "Brak eventu bonus_triggered"
+    assert any(ev["type"]=="bonus_triggered" for ev in gs.book.get("events", []))

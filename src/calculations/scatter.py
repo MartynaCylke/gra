@@ -1,5 +1,5 @@
 from typing import List, Dict, Any
-from src.symbol.symbol import Symbol
+from src.symbol import Symbol
 from src.state.config import GameConfig
 
 def evaluate_scatter(board: List[Symbol], cfg: GameConfig) -> Dict[str, Any]:

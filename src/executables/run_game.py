@@ -1,7 +1,7 @@
 from typing import List, Dict
 import random
 from src.config.build_config import GameConfig
-from src.symbol.symbol import Symbol
+from src.symbol import Symbol
 
 class Board:
     def __init__(self, cfg: GameConfig):

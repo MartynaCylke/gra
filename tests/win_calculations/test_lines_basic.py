@@ -1,6 +1,6 @@
 from src.config.build_config import GameConfig, Paytable
 from src.calculations.lines import evaluate_single_line
-from src.symbol.symbol import Symbol
+from src.symbol import Symbol
 
 
 def _cfg():

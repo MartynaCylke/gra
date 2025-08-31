@@ -4,7 +4,7 @@ from pathlib import Path
 import json
 
 # --- Normalizacja warunków Distribution ---
-def normalize_conditions(conditions: Dict[str, Any] | None) -> Dict[str, Any]:
+def normalize_conditions(conditions: Optional[Dict[str, Any]]) -> Dict[str, Any]:
     out = {
         "force_wincap": False,
         "force_freegame": False,
@@ -57,6 +57,11 @@ class Distribution:
     win_criteria: Optional[float] = None
     conditions: Optional[Dict[str, Any]] = None
 
+# --- NOWE: minimalna definicja warunków linii ---
+@dataclass
+class LineCondition:
+    pattern: List[int]  # np. [0, 0, 0] dla poziomej linii
+
 @dataclass
 class BetMode:
     name: str
@@ -67,13 +72,10 @@ class BetMode:
     is_feature: bool = False
     is_buybonus: bool = False
     distributions: List[Distribution] = field(default_factory=list)
+    conditions: List[LineCondition] = field(default_factory=list)  # <-- dodane
 
     def get_distribution_conditions(self) -> List[Dict[str, Any]]:
-        out = []
-        for dist in self.distributions:
-            cond = normalize_conditions(dist.conditions)
-            out.append(cond)
-        return out
+        return [normalize_conditions(d.conditions) for d in self.distributions]
 
 @dataclass
 class GameConfig:
@@ -113,15 +115,15 @@ def build_test_config(
         five_kind={"A": 50, "B": 25, "C": 10},
     )
 
-    # ✅ Dodajemy minimalną Distribution, żeby lista nie była pusta
     distributions = [Distribution(criteria="any", quota=1.0)]
+    conditions = [LineCondition(pattern=[0, 0, 0])]  # <-- minimalna linia
 
     cfg = GameConfig(
         id="test",
         mode="lines",
         colors=["A", "B", "C", "S", "W"],
         reels=reels or [["A", "B", "C", "W", "S"]] * 5,
-        betmodes=[BetMode(name="test", cost=1.0, distributions=distributions)],
+        betmodes=[BetMode(name="test", cost=1.0, distributions=distributions, conditions=conditions)],
         paytable=paytable,
         rows=1,
         cols=5,
@@ -162,6 +164,10 @@ def load_config(game_id: str, base_path: Optional[Path] = None) -> GameConfig:
             )
             for d in bm.get("distributions", [])
         ]
+        # jeśli w json nie ma warunków linii -> dajemy domyślne
+        conditions = [LineCondition(pattern=[0, 0, 0])] if not bm.get("conditions") else [
+            LineCondition(pattern=c.get("pattern", [0, 0, 0])) for c in bm.get("conditions", [])
+        ]
         betmodes.append(
             BetMode(
                 name=bm["name"],
@@ -172,6 +178,7 @@ def load_config(game_id: str, base_path: Optional[Path] = None) -> GameConfig:
                 is_feature=bm.get("is_feature", False),
                 is_buybonus=bm.get("is_buybonus", False),
                 distributions=distributions,
+                conditions=conditions,
             )
         )
 
@@ -179,23 +186,13 @@ def load_config(game_id: str, base_path: Optional[Path] = None) -> GameConfig:
         id=data["id"],
         mode=data.get("mode", "balls"),
         bet=data.get("bet", 1),
-        basegame_type=data.get("basegame_type", "basegame"),
-        freegame_type=data.get("freegame_type", "freegame"),
         reels=data.get("reels"),
         paytable=paytable,
         special_symbols=data.get("special_symbols", {}),
-        freespin_triggers=data.get("freespin_triggers", {}),
-        reels_map=data.get("reels_map", {}),
-        reels_sets=data.get("reels_sets", {}),
         colors=data.get("colors"),
-        weights=data.get("weights"),
-        balls_rules=BallsRules(**data["balls_rules"]) if data.get("balls_rules") else None,
         rows=data.get("rows"),
         cols=data.get("cols"),
-        grid_balls_rules=GridBallsRules(**data["grid_balls_rules"]) if data.get("grid_balls_rules") else None,
         betmodes=betmodes,
-        paytable_4oak=data.get("paytable_4oak"),
-        paytable_5oak=data.get("paytable_5oak"),
         multiplier=data.get("multiplier"),
         bonus=data.get("bonus"),
     )

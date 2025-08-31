@@ -1,6 +1,7 @@
 from typing import List, Dict, Any
 from src.config.build_config import GameConfig, BallsRules
-from src.symbol.symbol import Symbol
+from src.symbol import Symbol
+
 
 
 def evaluate_balls(board: List[Symbol], cfg: GameConfig) -> Dict[str, Any]:
